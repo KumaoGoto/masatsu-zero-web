@@ -1,28 +1,34 @@
 (function (root) {
   'use strict';
   const CONFIG = {
-    VER: 1,
+    VER: 4,
     HZ: 240,
-    LIMIT_TICKS: 14400,
+    LIMIT_TICKS: 7200,
     DIRS: 256,
     POWERS: 100,
     MIN_POWER: 8,
-    W_MAX: 62500,
     BODY_G: 20000,
     PLAYER_R: 240,
-    FIRST_ITEM: 4,
+    FIRST_ITEM: -1,
     THROW_GAP: 30,
     E_WALL: 50,
-    E_BODY: 70,
-    E_ITEM_WALL: 10,
-    E_ITEM_BODY: 20,
+    E_BODY: 85,
+    E_ITEM_WALL: 30,
+    E_ITEM_BODY: 50,
     GOAL_PAD: 50,
     OUT_X: 1000,
     OUT_Y: 1600,
     STUCK_MM_S: 4,
-    V_CAP: 131072,
-    SUB_MAX: 8,
+    BLAST_G: 1500,
+    CRASH_MIN: 8334,
+    CRASH_R_MIN: 600,
+    CRASH_R_MAX: 1000,
+    CRASH_V: 250,
+    CRASH_GAP: 48,
+    V_CAP: 262144,
+    SUB_MAX: 16,
     FIX_ITERS: 8,
+    PREDICT_TICKS: 480,
     HIT_MIN: 60,
     CAT_MIN: 500,
     MAX_HITS: 8,
@@ -32,27 +38,27 @@
     R_MIN: 30, R_MAX: 400,
     G_MAX: 100000,
     CIRCLE_R_MAX: 2000,
+    ITEM_N_MAX: 9,
+    ITEM_TOTAL_MAX: 12,
   };
+  const ITEMS = [
+    { id: 'kutsu', name: '靴下', g: 60, n: 2, r: 70, kick: 3750, speed: 110000, hit: 200, blast: { r: 0, v: 0 } },
+    { id: 'kyoka', name: '教科書', g: 500, n: 4, r: 110, def: true, kick: 6667, speed: 85000, hit: 900, blast: { r: 800, v: 12500 } },
+    { id: 'rando', name: 'ランドセル', g: 1400, n: 1, r: 150, kick: 10833, speed: 62500, hit: 3000, blast: { r: 2000, v: 33000 } },
+  ];
+  for (const it of ITEMS) { Object.freeze(it.blast); Object.freeze(it); }
+  Object.freeze(ITEMS);
+  const RANDO = ITEMS.findIndex((it) => it.id === 'rando');
+  CONFIG.FIRST_ITEM = Math.max(0, ITEMS.findIndex((it) => it.def));
   Object.freeze(CONFIG.GRID_R);
   Object.freeze(CONFIG);
-  const ITEMS = [
-    { id: 'keshi', name: '消しゴム', g: 30, n: 1, r: 60 },
-    { id: 'kutsu', name: '靴下', g: 60, n: 2, r: 70 },
-    { id: 'toast', name: 'トースト', g: 80, n: 1, r: 80 },
-    { id: 'sumaho', name: 'スマホ', g: 200, n: 1, r: 70 },
-    { id: 'kyoka', name: '教科書', g: 500, n: 2, r: 110 },
-    { id: 'suito', name: '水筒', g: 800, n: 1, r: 80 },
-    { id: 'rando', name: 'ランドセル', g: 1400, n: 1, r: 150 },
-  ];
-  for (const it of ITEMS) Object.freeze(it);
-  Object.freeze(ITEMS);
-  const RANDO = 6;
   const UM = 1000;
   const NS = 16384;
   const NS2 = NS * NS;
   const HZ = CONFIG.HZ, LIMIT = CONFIG.LIMIT_TICKS, V_CAP = CONFIG.V_CAP, SUB_MAX = CONFIG.SUB_MAX;
   const E_WALL = CONFIG.E_WALL, E_BODY = CONFIG.E_BODY, E_ITEM_WALL = CONFIG.E_ITEM_WALL, E_ITEM_BODY = CONFIG.E_ITEM_BODY;
   const HIT_MIN = CONFIG.HIT_MIN, CAT_MIN = CONFIG.CAT_MIN, MAX_HITS = CONFIG.MAX_HITS, FIX_ITERS = CONFIG.FIX_ITERS;
+  const CRASH_MIN = CONFIG.CRASH_MIN, BLAST_G = CONFIG.BLAST_G;
   const GSH = CONFIG.GRID_SHIFT;
   const STUCK2 = CONFIG.STUCK_MM_S * UM * CONFIG.STUCK_MM_S * UM;
   const OUTCOMES = [null, 'out', 'late', 'stuck'];
@@ -104,7 +110,22 @@
       if (b.x <= 0 || b.x >= L.w || b.y <= 0 || b.y >= L.h) return 'body';
     }
     if (boxes.length + cs.length > 2000 || bs.length > 200) return 'count';
+    if (L.items !== undefined && !countsOf(L)) return 'items';
     return null;
+  }
+  function countsOf(L) {
+    const m = L.items;
+    if (m === undefined) return ITEMS.map((it) => it.n);
+    if (!m || typeof m !== 'object' || Array.isArray(m)) return null;
+    for (const k of Object.keys(m)) if (!ITEMS.some((it) => it.id === k)) return null;
+    let total = 0;
+    const out = ITEMS.map((it) => {
+      const v = m[it.id] === undefined ? 0 : m[it.id];
+      if (!isInt(v) || v < 0 || v > CONFIG.ITEM_N_MAX) { total = -1e9; return 0; }
+      total += v;
+      return v;
+    });
+    return total >= 1 && total <= CONFIG.ITEM_TOTAL_MAX ? out : null;
   }
   function buildGeom(L) {
     const err = checkLayout(L);
@@ -166,15 +187,26 @@
   let CAP = 0;
   let X, Y, VX, VY, RR, RC, G;
   let KD, AL, IT, LIVE, GB;
+  let SLP, MV, SK, POS, AWK, AWK2;
+  let NA = 0;
+  let NSUB = 1;
+  const CATL = new Int32Array(8); let NCAT = 0;
   let N = 0, NL = 0;
+  let RMAX2 = 0;
   let wTick = 0, wOut = 0, wLeft = 0, wCatUm = 0, wCatOut = 0;
+  let wCool = 0;
+  let crV = 0, crX = 0, crY = 0, crB = -1;
+  let bR = 0, bV = 0, bN = 0;
   let REC = false, STAT = false;
   const stats = { saves: 0 };
   function grow(n) {
     const f = (old) => { const a = new Float64Array(n); if (old) a.set(old); return a; };
     const b = (old) => { const a = new Uint8Array(n); if (old) a.set(old); return a; };
     X = f(X); Y = f(Y); VX = f(VX); VY = f(VY); RR = f(RR); RC = f(RC); G = f(G);
-    KD = b(KD); AL = b(AL);
+    KD = b(KD); AL = b(AL); SLP = b(SLP); MV = b(MV); SK = f(SK);
+    const ps = new Int32Array(n); if (POS) ps.set(POS); POS = ps;
+    const aw = new Int32Array(n); if (AWK) aw.set(AWK); AWK = aw;
+    AWK2 = new Int32Array(n);
     const it = new Int8Array(n); if (IT) it.set(IT); IT = it;
     const lv = new Int32Array(n); if (LIVE) lv.set(LIVE); LIVE = lv;
     const gb = new Int32Array(n); if (GB) gb.set(GB); GB = gb;
@@ -184,11 +216,9 @@
   let curLayout = null, GEO = null;
   let gNR = 0, gRX1, gRY1, gRX2, gRY2, gCX, gCY, gCR, gCS, gCL, gGW = 0, gGH = 0, gGM = 0;
   let GOAL_Y = 0, OUT_X1 = 0, OUT_X2 = 0, OUT_Y1 = 0, OUT_Y2 = 0;
+  const GR1 = CONFIG.GRID_R[0] * UM, GR2 = CONFIG.GRID_R[1] * UM, GR3 = CONFIG.GRID_R[2] * UM;
   function gridBase(r) {
-    const gr = CONFIG.GRID_R;
-    let k = 0;
-    while (k < gr.length - 1 && r > gr[k] * UM) k++;
-    return k * GEO.cells1;
+    return (r > GR1 ? r > GR2 ? r > GR3 ? 3 : 2 : 1 : 0) * GEO.cells1;
   }
   function bind(layout) {
     const g = geomOf(layout);
@@ -202,7 +232,7 @@
   const EVX = new Float64Array(EV_MAX), EVY = new Float64Array(EV_MAX), EVV = new Float64Array(EV_MAX);
   let NE = 0, NH = 0;
   let PT = new Int32Array(TC_MAX), CT = new Int32Array(TC_MAX), NPT = 0, NCT = 0;
-  const T_HIT = 1, T_CAT = 2, T_OUT = 3;
+  const T_HIT = 1, T_CAT = 2, T_OUT = 3, T_BLAST = 4;
   function touch(key) {
     for (let i = 0; i < NCT; i++) if (CT[i] === key) return;
     if (NCT < TC_MAX) CT[NCT++] = key;
@@ -220,22 +250,36 @@
     EVT[NE] = t; EVA[NE] = a; EVB[NE] = -1; EVS[NE] = -1; EVK[NE] = -1; EVX[NE] = 0; EVY[NE] = 0; EVV[NE] = v;
     NE++;
   }
+  function emitBlast(x, y, r, v, n) {
+    if (NE >= EV_MAX) return;
+    EVT[NE] = T_BLAST; EVA[NE] = n; EVB[NE] = r; EVS[NE] = -1; EVK[NE] = -1; EVX[NE] = x; EVY[NE] = y; EVV[NE] = v;
+    NE++;
+  }
   function load(state) {
     if (state.layout !== curLayout) bind(state.layout);
     const bs = state.bodies, n = bs.length;
-    if (n + ITEMS.length + 4 > CAP) grow(n + 32);
-    N = n; NL = 0;
+    if (n + CONFIG.ITEM_TOTAL_MAX + 4 > CAP) grow(n + 32);
+    const x = X, y = Y, vx = VX, vy = VY, g = G, rr = RR, rc = RC, gb = GB, it = IT, kd = KD, al = AL, lv = LIVE, slp = SLP, mv = MV, aw = AWK, sk = SK, c1 = GEO.cells1;
+    let nl = 0, rmax2 = 0, ncat = 0;
+    N = n;
     for (let i = 0; i < n; i++) {
       const b = bs[i];
-      if (!b.alive) { AL[i] = 0; continue; }
-      AL[i] = 1; LIVE[NL++] = i;
-      X[i] = b.x; Y[i] = b.y; VX[i] = b.vx; VY[i] = b.vy; G[i] = b.g;
-      const r = b.r; RR[i] = r; RC[i] = Math.trunc(r / 2) + 2; GB[i] = gridBase(r);
-      IT[i] = b.item;
-      KD[i] = i === 0 ? K_PLAYER : b.item >= 0 ? K_ITEM : b.kind === 'cat' ? K_CAT : K_OTHER;
+      if (!b.alive) { al[i] = 0; continue; }
+      al[i] = 1; lv[nl] = i; aw[nl] = i; slp[i] = 0; mv[i] = 0;
+      const r = b.r, by = b.y;
+      x[i] = b.x; y[i] = by; vx[i] = b.vx; vy[i] = b.vy; g[i] = b.g;
+      rr[i] = r; rc[i] = Math.trunc(r / 2) + 2; gb[i] = (r > GR1 ? r > GR2 ? r > GR3 ? 3 : 2 : 1 : 0) * c1;
+      sk[nl] = by - r; nl++;
+      if (2 * r > rmax2) rmax2 = 2 * r;
+      const item = b.item, k = i === 0 ? K_PLAYER : item >= 0 ? K_ITEM : b.kind === 'cat' ? K_CAT : K_OTHER;
+      it[i] = item; kd[i] = k;
+      if (k === K_CAT && ncat < CATL.length) CATL[ncat++] = i;
     }
+    NL = nl; NA = nl; RMAX2 = rmax2; NCAT = ncat;
     GOAL_Y = GEO.goalY + RR[0];
-    wTick = state.tick; wOut = 0; wCatUm = state.catUm; wCatOut = state.catOut;
+    sortLive();
+    subAll();
+    wTick = state.tick; wOut = 0; wCatUm = state.catUm; wCatOut = state.catOut; wCool = state.cool || 0;
     const inv = state.inv; wLeft = 0;
     for (let i = 0; i < inv.length; i++) wLeft += inv[i];
   }
@@ -249,7 +293,7 @@
       if (AL[i] === 0) b.alive = false;
     }
     bs[0].g = G[0];
-    state.tick = wTick; state.catUm = wCatUm; state.catOut = wCatOut;
+    state.tick = wTick; state.catUm = wCatUm; state.catOut = wCatOut; state.cool = wCool;
     if (wOut !== 0) { state.over = true; state.outcome = OUTCOMES[wOut]; }
   }
   function cutsOne(s, x0, y0, x1, y1) {
@@ -325,7 +369,7 @@
         if (pen > bestPen) { bestPen = pen; best = s; }
       }
       if (best < 0) break;
-      pushed = true;
+      pushed = true; MV[i] = 1;
       let nx = 0, ny = 0, px = x, py = y;
       if (best < nR) {
         const x1 = RX1[best], x2 = RX2[best], y1 = RY1[best], y2 = RY2[best];
@@ -368,6 +412,7 @@
         VX[i] = vx - Math.trunc(j * nx / NS2);
         VY[i] = vy - Math.trunc(j * ny / NS2);
         if (REC) { const v = Math.trunc(-vn / NS); if (v >= HIT_MIN) emitHit(i, -1, best, key, px, py, v); }
+        if (i === 0) { const v = Math.trunc(-vn / NS); if (v >= CRASH_MIN && v > crV) { crV = v; crX = px; crY = py; crB = -1; } }
       }
       if (REC) touch(key);
     }
@@ -381,6 +426,9 @@
     let d = isqrt(d2);
     if (d === 0) { dx = 1; dy = 0; d = 1; }
     const pen = rr - d, mi = G[i], mj = G[j], M = mi + mj;
+    MV[i] = 1; MV[j] = 1;
+    if (SLP[i] !== 0) { SLP[i] = 0; AWK[NA++] = i; }
+    if (SLP[j] !== 0) { SLP[j] = 0; AWK[NA++] = j; }
     const sx = Math.trunc(dx * pen / d) + (dx > 0 ? 1 : dx < 0 ? -1 : 0);
     const sy = Math.trunc(dy * pen / d) + (dy > 0 ? 1 : dy < 0 ? -1 : 0);
     let ax = Math.trunc(sx * mj / M), ay = Math.trunc(sy * mj / M);
@@ -396,6 +444,10 @@
     const vn = (VX[j] - VX[i]) * nx + (VY[j] - VY[i]) * ny;
     const key = i * 65536 + j;
     if (vn < 0) {
+      if (i === 0) {
+        const v = Math.trunc(-vn / NS);
+        if (v >= CRASH_MIN && v > crV) { crV = v; crX = xi + Math.trunc(dx * RR[0] / d); crY = yi + Math.trunc(dy * RR[0] / d); crB = j; }
+      }
       const a1 = Math.trunc((100 + ((KD[i] === K_ITEM || KD[j] === K_ITEM) ? E_ITEM_BODY : E_BODY)) * vn / 100);
       const pa = Math.trunc(a1 * mj / M), pb = a1 - pa;
       let v;
@@ -414,94 +466,263 @@
     if (REC) touch(key);
     fixStatic(i, xi, yi); fixStatic(j, xj, yj);
   }
-  function tick() {
-    const lx = X, ly = Y, lvx = VX, lvy = VY, lr = RR, lv = LIVE, nl = NL;
-    let n = 1;
+  function blocked(x0, y0, x1, y1) {
+    const lx = x0 < x1 ? x0 : x1, hx = x0 < x1 ? x1 : x0, ly = y0 < y1 ? y0 : y1, hy = y0 < y1 ? y1 : y0;
+    const ex = x1 - x0, ey = y1 - y0;
+    for (let s = 0; s < gNR; s++) {
+      const ax = gRX1[s], bx = gRX2[s], ay = gRY1[s], by = gRY2[s];
+      if (hx <= ax || lx >= bx || hy <= ay || ly >= by) continue;
+      if ((x0 > ax && x0 < bx && y0 > ay && y0 < by) || (x1 > ax && x1 < bx && y1 > ay && y1 < by)) return true;
+      const c1 = ex * (ay - y0) - ey * (ax - x0), c2 = ex * (ay - y0) - ey * (bx - x0);
+      const c3 = ex * (by - y0) - ey * (ax - x0), c4 = ex * (by - y0) - ey * (bx - x0);
+      if (!((c1 >= 0 && c2 >= 0 && c3 >= 0 && c4 >= 0) || (c1 <= 0 && c2 <= 0 && c3 <= 0 && c4 <= 0))) return true;
+    }
+    const nC = gCX.length;
+    for (let k = 0; k < nC; k++) {
+      const cx = gCX[k], cy = gCY[k], cr = gCR[k];
+      if (cx + cr <= lx || cx - cr >= hx || cy + cr <= ly || cy - cr >= hy) continue;
+      const fx = cx - x0, fy = cy - y0, dot = fx * ex + fy * ey, L2 = ex * ex + ey * ey;
+      if (dot <= 0) { if (fx * fx + fy * fy < cr * cr) return true; }
+      else if (dot >= L2) { const gx = cx - x1, gy = cy - y1; if (gx * gx + gy * gy < cr * cr) return true; }
+      else {
+        const c = fx * ey - fy * ex;
+        if ((c < 0 ? -c : c) < cr * isqrt(L2)) return true;
+      }
+    }
+    return false;
+  }
+  function blastAt(cx, cy, ox, oy, R, V, skip) {
+    if (R <= 0 || V <= 0) return 0;
+    const R2 = R * R, lv = LIVE, nl = NL;
+    let n = 0;
     for (let a = 0; a < nl; a++) {
-      const i = lv[a], vx = lvx[i], vy = lvy[i];
-      if (vx === 0 && vy === 0) continue;
-      const v2 = vx * vx + vy * vy, r = lr[i], q = 4 * v2, r2 = r * r;
-      while (n < SUB_MAX && q > n * n * r2) n++;
-      if (STAT && KD[i] === K_CAT) wCatUm += isqrt(v2);
+      const j = lv[a];
+      if (j === 0 || j === skip || KD[j] === K_CAT) continue;
+      const dx = X[j] - cx, dy = Y[j] - cy;
+      if (dx >= R || dx <= -R || dy >= R || dy <= -R) continue;
+      const d2 = dx * dx + dy * dy;
+      if (d2 >= R2) continue;
+      const d = isqrt(d2);
+      let v = Math.trunc(V * (R - d) / R);
+      if (G[j] > BLAST_G) v = Math.trunc(v * BLAST_G / G[j]);
+      if (v <= 0 || blocked(ox, oy, X[j], Y[j])) continue;
+      let nx = NS, ny = 0;
+      if (d !== 0) { nx = Math.trunc(dx * NS / d); ny = Math.trunc(dy * NS / d); }
+      let w = VX[j] + Math.trunc(v * nx / NS); VX[j] = w > V_CAP ? V_CAP : w < -V_CAP ? -V_CAP : w;
+      w = VY[j] + Math.trunc(v * ny / NS); VY[j] = w > V_CAP ? V_CAP : w < -V_CAP ? -V_CAP : w;
+      MV[j] = 1;
+      if (SLP[j] !== 0) { SLP[j] = 0; AWK[NA++] = j; }
+      n++;
+    }
+    return n;
+  }
+  function needSub(i, n) {
+    const vx = VX[i], vy = VY[i];
+    if (vx === 0 && vy === 0) return n;
+    const q = 4 * (vx * vx + vy * vy), r = RR[i], r2 = r * r;
+    while (n < SUB_MAX && q > n * n * r2) n++;
+    return n;
+  }
+  function subAll() {
+    let n = 1;
+    for (let q = 0; q < NA; q++) n = needSub(AWK[q], n);
+    NSUB = n;
+  }
+  function sortLive() {
+    const lv = LIVE, sk = SK, pos = POS, nl = NL;
+    for (let a = 1; a < nl; a++) {
+      const i = lv[a], key = sk[a];
+      let b = a - 1;
+      while (b >= 0) {
+        const kj = sk[b];
+        if (kj < key || (kj === key && lv[b] < i)) break;
+        lv[b + 1] = lv[b]; sk[b + 1] = kj; b--;
+      }
+      lv[b + 1] = i; sk[b + 1] = key;
+    }
+    for (let a = 0; a < nl; a++) pos[lv[a]] = a;
+  }
+  function tick() {
+    const lx = X, ly = Y, lvx = VX, lvy = VY, lr = RR, lv = LIVE, slp = SLP, mv = MV, sk = SK, pos = POS, aw = AWK, kd = KD, rc = RC;
+    const n = NSUB;
+    if (STAT) for (let q = 0; q < NCAT; q++) {
+      const i = CATL[q], vx = lvx[i], vy = lvy[i];
+      if (AL[i] !== 0 && (vx !== 0 || vy !== 0)) wCatUm += isqrt(vx * vx + vy * vy);
     }
     if (REC) { const t = PT; PT = CT; CT = t; NPT = NCT; NCT = 0; NE = 0; NH = 0; }
+    crV = 0;
+    if (wCool > 0) wCool--;
     const cs = gCS, gb = GB, gw = gGW, gh = gGH, gm = gGM;
+    const ox1 = OUT_X1, ox2 = OUT_X2, oy1 = OUT_Y1, oy2 = OUT_Y2;
+    let w = 0, dead = false, nn = 1, fused = false;
     for (let k = 0; k < n; k++) {
-      for (let a = 0; a < nl; a++) {
-        const i = lv[a], vx = lvx[i], vy = lvy[i], x0 = lx[i], y0 = ly[i];
-        let x = x0, y = y0;
-        if (vx !== 0 || vy !== 0) {
-          let dx = vx, dy = vy;
-          if (n !== 1) {
-            dx = Math.trunc(vx * (k + 1) / n) - Math.trunc(vx * k / n);
-            dy = Math.trunc(vy * (k + 1) / n) - Math.trunc(vy * k / n);
-            const c = RC[i];
-            if (dx > c) dx = c; else if (dx < -c) dx = -c;
-            if (dy > c) dy = c; else if (dy < -c) dy = -c;
+      const nl = NL, all = NA * 2 >= nl;
+      let bad = false, any = all;
+      if (all) {
+        for (let a = 0; a < nl; a++) {
+          const i = lv[a];
+          if (slp[i] === 0) {
+            const vx = lvx[i], vy = lvy[i], x0 = lx[i], y0 = ly[i];
+            let x = x0, y = y0;
+            if (vx !== 0 || vy !== 0) {
+              let dx = vx, dy = vy;
+              if (n !== 1) {
+                dx = Math.trunc(vx * (k + 1) / n) - Math.trunc(vx * k / n);
+                dy = Math.trunc(vy * (k + 1) / n) - Math.trunc(vy * k / n);
+                const c = rc[i];
+                if (dx > c) dx = c; else if (dx < -c) dx = -c;
+                if (dy > c) dy = c; else if (dy < -c) dy = -c;
+              }
+              x += dx; y += dy;
+              lx[i] = x; ly[i] = y; mv[i] = 1;
+            }
+            const gx = (x + gm) >> GSH, gy = (y + gm) >> GSH;
+            if (gx >= 0 && gx < gw && gy >= 0 && gy < gh) {
+              const c = gb[i] + gy * gw + gx;
+              if (cs[c] !== cs[c + 1]) fixStatic(i, x0, y0);
+            }
           }
-          x += dx; y += dy;
-          lx[i] = x; ly[i] = y;
+          const key = ly[i] - lr[i];
+          let b = a - 1;
+          while (b >= 0) {
+            const kj = sk[b];
+            if (kj < key || (kj === key && lv[b] < i)) break;
+            lv[b + 1] = lv[b]; sk[b + 1] = kj; b--; bad = true;
+          }
+          b++;
+          lv[b] = i; sk[b] = key;
         }
-        const gx = (x + gm) >> GSH, gy = (y + gm) >> GSH;
-        if (gx >= 0 && gx < gw && gy >= 0 && gy < gh) {
-          const c = gb[i] + gy * gw + gx;
-          if (cs[c] !== cs[c + 1]) fixStatic(i, x0, y0);
+        if (bad) for (let a = 0; a < nl; a++) pos[lv[a]] = a;
+      } else {
+        for (let q = 0; q < NA; q++) {
+          const i = aw[q], vx = lvx[i], vy = lvy[i], x0 = lx[i], y0 = ly[i];
+          let x = x0, y = y0;
+          if (vx !== 0 || vy !== 0) {
+            let dx = vx, dy = vy;
+            if (n !== 1) {
+              dx = Math.trunc(vx * (k + 1) / n) - Math.trunc(vx * k / n);
+              dy = Math.trunc(vy * (k + 1) / n) - Math.trunc(vy * k / n);
+              const c = rc[i];
+              if (dx > c) dx = c; else if (dx < -c) dx = -c;
+              if (dy > c) dy = c; else if (dy < -c) dy = -c;
+            }
+            x += dx; y += dy;
+            lx[i] = x; ly[i] = y; mv[i] = 1;
+          }
+          const gx = (x + gm) >> GSH, gy = (y + gm) >> GSH;
+          if (gx >= 0 && gx < gw && gy >= 0 && gy < gh) {
+            const c = gb[i] + gy * gw + gx;
+            if (cs[c] !== cs[c + 1]) fixStatic(i, x0, y0);
+          }
+        }
+        for (let q = 0; q < NA; q++) { const i = aw[q]; sk[pos[i]] = ly[i] - lr[i]; }
+        for (let q = 0; q < NA && !bad; q++) {
+          const i = aw[q], p = pos[i], key = sk[p];
+          if (p > 0) { const kj = sk[p - 1]; if (kj > key || (kj === key && lv[p - 1] > i)) bad = true; }
+          if (p + 1 < nl) { const kj = sk[p + 1]; if (kj < key || (kj === key && lv[p + 1] < i)) bad = true; }
+        }
+        if (bad) sortLive();
+        for (let q = 0; q < NA && !any; q++) {
+          const i = aw[q], p = pos[i], ri = lr[i], xi = lx[i], yi = ly[i], bottom = yi + ri, reach = sk[p] - RMAX2;
+          for (let b = p + 1; b < nl; b++) {
+            if (sk[b] >= bottom) break;
+            const j = lv[b], rr = ri + lr[j], dx = lx[j] - xi;
+            if (dx >= rr || dx <= -rr) continue;
+            const dy = ly[j] - yi;
+            if (dy < rr && dy > -rr && dx * dx + dy * dy < rr * rr) { any = true; break; }
+          }
+          for (let b = p - 1; b >= 0 && !any && sk[b] > reach; b--) {
+            const j = lv[b];
+            if (slp[j] === 0) continue;
+            const rr = ri + lr[j], dx = lx[j] - xi;
+            if (dx >= rr || dx <= -rr) continue;
+            const dy = ly[j] - yi;
+            if (dy < rr && dy > -rr && dx * dx + dy * dy < rr * rr) any = true;
+          }
         }
       }
-      for (let a = 1; a < nl; a++) {
-        const i = lv[a], key = lx[i] - lr[i];
-        let b = a - 1;
-        while (b >= 0) {
-          const j = lv[b], kj = lx[j] - lr[j];
-          if (kj < key || (kj === key && j < i)) break;
-          lv[b + 1] = j; b--;
-        }
-        lv[b + 1] = i;
-      }
+      if (!any) continue;
+      fused = all && k === n - 1;
+      const aw2 = AWK2;
       for (let a = 0; a < nl; a++) {
         const i = lv[a], ri = lr[i];
-        let xi = lx[i], yi = ly[i], right = xi + ri;
+        let si = slp[i], xi = lx[i], yi = ly[i], bottom = yi + ri;
         for (let b = a + 1; b < nl; b++) {
-          const j = lv[b], xj = lx[j], rj = lr[j];
-          if (xj - rj >= right) break;
-          const rr = ri + rj, dy = ly[j] - yi;
-          if (dy >= rr || dy <= -rr) continue;
-          const dx = xj - xi, d2 = dx * dx + dy * dy;
+          if (sk[b] >= bottom) break;
+          const j = lv[b];
+          if (si !== 0 && slp[j] !== 0) continue;
+          const rr = ri + lr[j], dx = lx[j] - xi, dy = ly[j] - yi, d2 = dx * dx + dy * dy;
           if (d2 >= rr * rr) continue;
           if (i < j) hitPair(i, j, dx, dy, d2, rr); else hitPair(j, i, -dx, -dy, d2, rr);
-          xi = lx[i]; yi = ly[i]; right = xi + ri;
+          si = 0; xi = lx[i]; yi = ly[i]; bottom = yi + ri;
+        }
+        if (fused && slp[i] === 0) {
+          if (i !== 0 && (yi > oy2 || xi < ox1 || xi > ox2 || yi < oy1)) {
+            AL[i] = 0; dead = true;
+            if (kd[i] === K_CAT) wCatOut++;
+            if (REC) emit(T_OUT, i, 0);
+          } else if (mv[i] !== 0) {
+            mv[i] = 0; aw2[w++] = i;
+            const vx = lvx[i], vy = lvy[i];
+            if (vx !== 0 || vy !== 0) { const q4 = 4 * (vx * vx + vy * vy), r2 = ri * ri; while (nn < SUB_MAX && q4 > nn * nn * r2) nn++; }
+          } else slp[i] = 1;
         }
       }
     }
-    const ox1 = OUT_X1, ox2 = OUT_X2, oy1 = OUT_Y1, oy2 = OUT_Y2;
-    let w = 0;
-    for (let a = 0; a < nl; a++) {
-      const i = lv[a], x = lx[i], y = ly[i];
-      if (i !== 0 && (y > oy2 || x < ox1 || x > ox2 || y < oy1)) {
-        AL[i] = 0;
-        if (KD[i] === K_CAT) wCatOut++;
-        if (REC) emit(T_OUT, i, 0);
-      } else lv[w++] = i;
+    if (fused) { AWK = AWK2; AWK2 = aw; }
+    else {
+      for (let q = 0; q < NA; q++) {
+        const i = aw[q], x = lx[i], y = ly[i];
+        if (i !== 0 && (y > oy2 || x < ox1 || x > ox2 || y < oy1)) {
+          AL[i] = 0; dead = true;
+          if (kd[i] === K_CAT) wCatOut++;
+          if (REC) emit(T_OUT, i, 0);
+        } else if (mv[i] !== 0) {
+          mv[i] = 0; aw[w++] = i;
+          const vx = lvx[i], vy = lvy[i];
+          if (vx !== 0 || vy !== 0) { const q4 = 4 * (vx * vx + vy * vy), r = lr[i], r2 = r * r; while (nn < SUB_MAX && q4 > nn * nn * r2) nn++; }
+        } else slp[i] = 1;
+      }
     }
-    NL = w;
+    NA = w; NSUB = nn;
+    if (dead) {
+      const nl = NL;
+      let m = 0;
+      for (let a = 0; a < nl; a++) { const i = lv[a]; if (AL[i] !== 0) { lv[m] = i; sk[m] = sk[a]; pos[i] = m; m++; } }
+      NL = m;
+    }
+    if (crV !== 0 && wCool === 0) {
+      let R = Math.trunc(CONFIG.CRASH_R_MIN * crV / CRASH_MIN);
+      if (R > CONFIG.CRASH_R_MAX) R = CONFIG.CRASH_R_MAX;
+      R *= UM;
+      const V = Math.trunc(crV * CONFIG.CRASH_V / 100);
+      const nb = blastAt(crX, crY, lx[0], ly[0], R, V, crB);
+      if (nb !== 0) subAll();
+      wCool = CONFIG.CRASH_GAP;
+      if (REC) emitBlast(crX, crY, R, V, nb);
+    }
     wTick++;
     if (ly[0] > GOAL_Y) wOut = 1;
     else if (wTick >= LIMIT) wOut = 2;
     else if (wLeft === 0 && (lvx[0] * lvx[0] + lvy[0] * lvy[0]) * HZ * HZ < STUCK2) wOut = 3;
   }
   function wThrow(item, dir, power) {
-    const def = ITEMS[item], g = def.g, M = G[0];
-    const w = Math.trunc(CONFIG.W_MAX * power / CONFIG.POWERS);
+    const def = ITEMS[item], P = CONFIG.POWERS;
+    const k = Math.trunc(def.kick * power / P), sp = Math.trunc(def.speed * power / P);
     const ux = DIRX[dir], uy = DIRY[dir];
-    const wx = Math.trunc(w * ux / NS), wy = Math.trunc(w * uy / NS);
-    let vx = VX[0] - Math.trunc(g * wx / M), vy = VY[0] - Math.trunc(g * wy / M);
+    let vx = VX[0] - Math.trunc(k * ux / NS), vy = VY[0] - Math.trunc(k * uy / NS);
     vx = vx > V_CAP ? V_CAP : vx < -V_CAP ? -V_CAP : vx;
     vy = vy > V_CAP ? V_CAP : vy < -V_CAP ? -V_CAP : vy;
-    VX[0] = vx; VY[0] = vy; G[0] = M - g;
+    VX[0] = vx; VY[0] = vy; G[0] -= def.g; MV[0] = 1;
+    if (SLP[0] !== 0) { SLP[0] = 0; AWK[NA++] = 0; }
+    bR = Math.trunc(def.blast.r * UM * power / P); bV = Math.trunc(def.blast.v * power / P);
+    bN = blastAt(X[0], Y[0], X[0], Y[0], bR, bV, -1);
     const i = N++;
     const r = def.r * UM;
-    AL[i] = 1; LIVE[NL++] = i; KD[i] = K_ITEM; IT[i] = item;
-    RR[i] = r; RC[i] = Math.trunc(r / 2) + 2; GB[i] = gridBase(r); G[i] = g;
+    AL[i] = 1; KD[i] = K_ITEM; IT[i] = item; SLP[i] = 0; MV[i] = 1;
+    POS[i] = NL; LIVE[NL++] = i; AWK[NA++] = i;
+    RR[i] = r; RC[i] = Math.trunc(r / 2) + 2; GB[i] = gridBase(r); G[i] = def.hit;
+    if (2 * r > RMAX2) RMAX2 = 2 * r;
     const off = RR[0] + r + CONFIG.THROW_GAP * UM;
     const tx = Math.trunc(off * ux / NS), ty = Math.trunc(off * uy / NS);
     let m = 1;
@@ -515,27 +736,31 @@
       fixStatic(i, x0, y0);
     }
     REC = rec;
-    vx += wx; vy += wy;
+    SK[POS[i]] = Y[i] - r;
+    vx += Math.trunc(sp * ux / NS); vy += Math.trunc(sp * uy / NS);
     VX[i] = vx > V_CAP ? V_CAP : vx < -V_CAP ? -V_CAP : vx;
     VY[i] = vy > V_CAP ? V_CAP : vy < -V_CAP ? -V_CAP : vy;
     wLeft--;
+    subAll();
     return i;
   }
   function mkBody(id, kind, item, x, y, vx, vy, r, g) { return { id, kind, item, x, y, vx, vy, r, g, alive: true }; }
   function createState(layout) {
     geomOf(layout);
+    const inv = countsOf(layout);
     let carry = 0;
-    for (const it of ITEMS) carry += it.g * it.n;
+    for (let k = 0; k < ITEMS.length; k++) carry += ITEMS[k].g * inv[k];
     const bodies = [mkBody(0, 'player', -1, layout.start.x * UM, layout.start.y * UM, 0, 0, CONFIG.PLAYER_R * UM, CONFIG.BODY_G + carry)];
     const lb = layout.bodies || [];
     for (let i = 0; i < lb.length; i++) bodies.push(mkBody(i + 1, lb[i].kind, -1, lb[i].x * UM, lb[i].y * UM, 0, 0, lb[i].r * UM, lb[i].g));
     return {
       ver: CONFIG.VER, tick: 0, over: false, outcome: null,
-      bodies, inv: ITEMS.map((it) => it.n), log: [], events: [],
+      bodies, inv, log: [], events: [],
       layout,
       catUm: 0,
       catOut: 0,
       touch: [],
+      cool: 0,
     };
   }
   function clone(state) {
@@ -548,7 +773,7 @@
       ver: state.ver, tick: state.tick, over: state.over, outcome: state.outcome,
       bodies, inv: state.inv.slice(), log: state.log.map((e) => e.slice()), events: state.events.map((e) => Object.assign({}, e)),
       layout: state.layout,
-      catUm: state.catUm, catOut: state.catOut, touch: state.touch.slice(),
+      catUm: state.catUm, catOut: state.catOut, touch: state.touch.slice(), cool: state.cool,
     };
   }
   function advance(state, keep) {
@@ -573,6 +798,7 @@
       const t = EVT[e];
       if (t === T_HIT) ev.push({ t: 'hit', a: EVA[e], b: EVB[e], s: EVS[e] < 0 ? null : GEO.names[EVS[e]], x: EVX[e], y: EVY[e], v: EVV[e] });
       else if (t === T_CAT) ev.push({ t: 'cat', id: EVA[e], v: EVV[e] });
+      else if (t === T_BLAST) ev.push({ t: 'blast', x: EVX[e], y: EVY[e], r: EVB[e], v: EVV[e], src: 'crash', item: -1, n: EVA[e] });
       else ev.push({ t: 'out', id: EVA[e], kind: state.bodies[EVA[e]].kind });
     }
     if (wOut !== 0) ev.push({ t: 'end', outcome: OUTCOMES[wOut] });
@@ -599,18 +825,19 @@
     if (!canThrow(state, item, dir, power)) return false;
     load(state);
     REC = false; STAT = false;
+    const x = state.bodies[0].x, y = state.bodies[0].y;
     const i = wThrow(item, dir, power);
     store(state);
     state.inv[item]--;
     state.log.push([state.tick, item, dir, power]);
+    if (bR > 0 && bV > 0) state.events.push({ t: 'blast', x, y, r: bR, v: bV, src: 'throw', item, n: bN });
     state.events.push({ t: 'throw', id: i, item, dir, power });
     return true;
   }
   function previewDv(state, item, power) {
     const def = ITEMS[item];
     if (!def) return 0;
-    const w = Math.trunc(CONFIG.W_MAX * power / CONFIG.POWERS);
-    return Math.trunc(def.g * w / state.bodies[0].g);
+    return Math.trunc(def.kick * power / CONFIG.POWERS);
   }
   function predict(state, item, dir, power, ticks, stride, out) {
     const cap = out.length >> 1;
@@ -644,7 +871,7 @@
       distDoor: Math.trunc(isqrt(dx * dx + dy * dy) / UM),
       catDist: Math.trunc(state.catUm / UM),
       catOut: state.catOut,
-      randoLeft: state.inv[RANDO] === 0,
+      randoLeft: state.log.some((e) => e[1] === RANDO),
     };
   }
   function simulate(layout, log, opt) {
@@ -653,7 +880,7 @@
     try { state = createState(layout); } catch (e) { return bad('layout'); }
     if (!Array.isArray(log)) return bad('log');
     let total = 0;
-    for (const it of ITEMS) total += it.n;
+    for (let k = 0; k < state.inv.length; k++) total += state.inv[k];
     if (log.length > total) return bad('too_many');
     const inv = state.inv.slice();
     let prev = -1;
@@ -714,7 +941,7 @@
   const NFCore = {
     CONFIG, ITEMS, DIRX, DIRY,
     createState, step, throwItem, previewDv, predict, clone, simulate, summary, speed,
-    stepAfter, canThrow, dirOf, checkLayout, statics,
+    stepAfter, canThrow, dirOf, checkLayout, statics, countsOf,
     _internal: { isqrt, stats },
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = NFCore;

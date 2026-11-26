@@ -1,36 +1,42 @@
-export const LIMIT_TENTHS = 600;
+export let LIMIT_TENTHS = 600;
+export function useLimit(config) {
+  const t = config && Number.isInteger(config.LIMIT_TICKS) && config.LIMIT_TICKS > 0 ? config.LIMIT_TICKS : 0;
+  if (t) LIMIT_TENTHS = Math.round(t / 24);
+  return LIMIT_TENTHS;
+}
+useLimit(typeof globalThis !== 'undefined' && globalThis.NFCore ? globalThis.NFCore.CONFIG : null);
+export function limitSec() { return Math.round(LIMIT_TENTHS / 10); }
 export const HASHTAG = '#摩擦ゼロの朝';
 export const TITLE = '摩擦ゼロの朝';
 export const TAGLINE = 'ある朝、世界から摩擦が消えた。';
 export const TRUTH = '歩けるのは、足と床のあいだに摩擦があるから。摩擦がないと、物を投げた反動（作用・反作用）でしか動けない。重い物を投げるほど、大きく動く。';
 export const HINTS = {
   first: '下で物を選んで、画面を指で引っぱって離す',
-  after: 'すべって止まれない。また投げて、向きを変えよう',
-  ready: '画面を引っぱって離すと、反対へすべる',
-  readyInv: '引っぱって離すと、引いた向きへすべる',
-  readySub: '投げたらスタート',
+  after: 'ぶつかるまで止まれない。次の物で向きを変えよう',
+  ready: '行きたい方へ引っぱって離す',
+  readyOpp: '引っぱって離すと、反対へ飛び出す',
 };
-export const COACH = { self: '引いた反対へ すべる', selfInv: '引いた向きへ すべる', item: '物が飛ぶ' };
-export const HOWTO_PULL = { h: '引っぱって離すと、反対へすべる', p: '物を投げた反動で動く。物は、引いた向きへ飛ぶ。', self: '反対へ すべる', item: '物' };
-export const PULLS = { normal: '引いた反対へすべる', invert: '引いた向きへすべる', mark: '標準' };
-export const VIEWS = [
-  { id: 'near', name: '寄り', note: 'すべる間は大きく映す。引く間は家ぜんぶ' },
-  { id: 'wide', name: '横いっぱい', note: '家を横いっぱいに映して、たてに追う' },
-  { id: 'whole', name: '家ぜんぶ', note: 'いつも家ぜんぶを映す。物は小さめ' },
-];
-export const VIEW_DEFAULT = 'near';
-export const DOOR_TIP = '玄関';
+export const PULLS = { same: 'ロケット式（行きたい方へ引く）', opposite: 'パチンコ式（引いて離すと反対へ飛び出す）', mark: '標準', def: 'same' };
+export const PULL_NOTE = { same: '物を後ろに投げて、その反動で進む', opposite: '物は引いた向きへ飛び、自分は反対へ' };
+export function pullMode(v) { return v === 'same' || v === 'opposite' ? v : PULLS.def; }
+export function readyHint(mode) { return pullMode(mode) === 'same' ? HINTS.ready : HINTS.readyOpp; }
+export const COACH = {
+  same: { main: '行きたい方へ引く', sub: '物を後ろに投げて進む' },
+  opposite: { main: '引いた反対へ 飛び出す', sub: '物は引いた向きへ' },
+};
+export const HOWTO_PULL = {
+  same: { h: '行きたい方へ、引っぱって離す', p: '物を後ろに投げて、その反動で進む。', pull: '引く', item: '物は後ろへ', self: '前へ進む' },
+  opposite: { h: '引っぱって離すと、反対へ飛び出す', p: '物は引いた向きへ飛び、その反動で、自分は反対へ飛び出す。', pull: '引く', item: '物は引いた向きへ', self: '反対へ飛び出す' },
+};
 export const FAIL = { title: 'この端末では絵を出せませんでした', sub: 'ブラウザを新しくするか、ほかの端末で開いてみてください。', button: '読み直す' };
-export const ITEMS = [
-  { id: 'keshi', name: '消しゴム', g: 30, n: 1 },
-  { id: 'kutsu', name: '靴下', g: 60, n: 2 },
-  { id: 'toast', name: 'トースト', g: 80, n: 1 },
-  { id: 'sumaho', name: 'スマホ', g: 200, n: 1 },
-  { id: 'kyoka', name: '教科書', g: 500, n: 2 },
-  { id: 'suito', name: '水筒', g: 800, n: 1 },
-  { id: 'rando', name: 'ランドセル', g: 1400, n: 1 },
-];
-const BY_ID = Object.fromEntries(ITEMS.map((it, i) => [it.id, { ...it, i }]));
+export let ITEMS = [];
+let BY_ID = {};
+export function useItems(list) {
+  ITEMS = (list || []).map((it) => ({ id: it.id, name: it.name, g: it.g, n: it.n }));
+  BY_ID = Object.fromEntries(ITEMS.map((it, i) => [it.id, { ...it, i }]));
+  return ITEMS;
+}
+useItems(typeof globalThis !== 'undefined' && globalThis.NFCore ? globalThis.NFCore.ITEMS : []);
 export const MEDALS = ['gold', 'silver', 'bronze'];
 export const MEDAL_NAME = { gold: '金', silver: '銀', bronze: '銅' };
 const DAYS = '月火水木金土日';
@@ -45,10 +51,6 @@ export function weightLabel(g) {
 }
 export function formatMeters(m) {
   return formatTenths(Math.round(Math.max(0, Number(m) || 0) * 10));
-}
-export function formatDv(dv) {
-  const v = Math.max(0, Number(dv) || 0);
-  return '+' + (Math.round(v * 100) / 100).toFixed(2);
 }
 export function dayLabel(day) {
   if (!day) return '';
@@ -103,6 +105,15 @@ export function catLine(r) {
   if (d < 0.05) return `${who} すべらずにすんだ`;
   return cats > 1 ? `${who} 合わせて ${formatMeters(d)} m すべった` : `${who} ${formatMeters(d)} m すべった`;
 }
+export function smashLine(r) {
+  const p = smashParts(r);
+  return p ? p.join('・') : null;
+}
+export function smashParts(r) {
+  const n = Math.max(0, Math.round(Number(r && r.smashed) || 0)), best = Math.max(0, Math.round(Number(r && r.smashBest) || 0));
+  if (!n) return null;
+  return best >= 2 ? [`ぶっ飛ばした物 ${n} 個`, `最大 ${best} コ ぶっ飛ばし`] : [`ぶっ飛ばした物 ${n} 個`];
+}
 export function randoLine(r) {
   return threwRando(r) ? 'ランドセルは家に置いてきた' : null;
 }
@@ -126,18 +137,6 @@ export function nextMedalText(tenths, times, medal) {
   const n = nextMedal(tenths, times, medal);
   if (!n) return null;
   return `${MEDAL_NAME[n.medal]}まで あと ${formatTenths(n.diff)} 秒`;
-}
-export function captionParts(c) {
-  return {
-    name: c.name || '',
-    weight: typeof c.weight === 'number' ? weightLabel(c.weight) : String(c.weight || ''),
-    lead: 'いっぱいに引くと',
-    dv: formatDv(c.dv) + ' m/秒',
-  };
-}
-export function captionText(c) {
-  const p = captionParts(c);
-  return `${p.name} ${p.weight} ・ ${p.lead} ${p.dv}`;
 }
 export function shareText(r, url) {
   let s;

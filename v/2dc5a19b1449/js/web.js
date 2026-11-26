@@ -8,7 +8,7 @@ const SITE={
   announce:'',
   contact:'support.kumaogoto@gmail.com',
 };
-const WEB_VERSION='1.0.1';
+const WEB_VERSION='1.3.0';
 const BGM_DIR='bgm/';
 const BGM_LIST=[];
 const TERMS_VERSION=1, NAME_MAX=10, BOARD_SIZE=100, TIMEOUT_MS=8000;
@@ -115,6 +115,7 @@ function okRec(r){ return isObj(r)&&isInt(r.tenths)&&r.tenths>=0&&r.tenths<=600&
 function loadDay(){
   const d=load(KEY.day);
   if(!isObj(d)||!isDay(d.date)||typeof d.layout!=='string'||!isInt(d.ver)) return null;
+  if(d.ver!==gameVer()){ drop(KEY.day); return null; }
   if(d.best!=null&&!okRec(d.best)) d.best=null;
   if(d.sent!=null&&!(isObj(d.sent)&&isInt(d.sent.tenths)&&isInt(d.sent.throws))) d.sent=null;
   return d;

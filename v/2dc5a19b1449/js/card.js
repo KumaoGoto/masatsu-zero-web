@@ -140,14 +140,23 @@ function photo(g, shot, cx, cy, pw, ph) {
 function wordsBottom(r, list) {
   return (r.outcome === 'out' ? 276 + (r.medal && MEDAL[r.medal] ? 98 : 12) : r.outcome === 'late' ? 328 : 342) + (list.length ? 140 : 0);
 }
+const WORDS_W = 650;
 function words(g, r, list, icons, x0) {
   let y = 98;
-  g.fillStyle = MUTED; g.font = font(700, 27);
   const where = [r.day ? dayLabel(r.day) : '', r.layoutName || ''].filter(Boolean).join(' ・ ');
+  const pills = [];
+  if (r.practice) pills.push(['れんしゅう', 'rgba(30, 39, 66, .1)', INK]);
+  if (r.outcome === 'out' && r.newBest) pills.push(['自己ベスト！', SUN, '#fff']);
+  g.font = font(900, 24);
+  const room = WORDS_W - pills.reduce((w, p) => w + g.measureText(p[0]).width + 32 + 10, 0) - (pills.length ? 8 : 0);
+  let size = 27;
+  g.font = font(700, size);
+  const ww = g.measureText(where).width;
+  if (ww > room) { size = Math.max(19, Math.floor(size * room / ww)); g.font = font(700, size); }
+  g.fillStyle = MUTED;
   g.fillText(where, x0, y);
   let tx = x0 + g.measureText(where).width + (where ? 18 : 0);
-  if (r.practice) tx += pill(g, 'れんしゅう', tx, y - 10, 'rgba(30, 39, 66, .1)', INK) + 10;
-  if (r.outcome === 'out' && r.newBest) pill(g, '自己ベスト！', tx, y - 10, SUN, '#fff');
+  for (const p of pills) tx += pill(g, p[0], tx, y - 10, p[1], p[2]) + 10;
   if (r.outcome === 'out') {
     const num = formatTenths(r.tenths);
     g.font = font(900, 176);
