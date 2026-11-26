@@ -15,14 +15,14 @@ export function createAimView(after) {
       <g class="pl-g">
         <circle class="pl-max" r="130"/>
         <line class="pl-band-bg"/><line class="pl-band"/>
-        <circle class="pl-anchor-bg" r="9"/><circle class="pl-anchor" r="9"/>
-        <circle class="pl-knob" r="4.5"/>
+        <circle class="pl-anchor-bg" r="6"/><circle class="pl-anchor" r="6"/>
+        <circle class="pl-knob" r="3"/>
       </g>
     </svg>
     <div class="pl-more"><span>もっと引く</span></div>
     <div class="pl-note"><span></span></div>`);
   const q = (s) => root.querySelector(s);
-  const g = q('.pl-g'), max = q('.pl-max'), bandBg = q('.pl-band-bg'), band = q('.pl-band'), knob = q('.pl-knob'), more = q('.pl-more');
+  const g = q('.pl-g'), max = q('.pl-max'), band = q('.pl-band'), bandBg = q('.pl-band-bg'), knob = q('.pl-knob'), more = q('.pl-more');
   const noteEl = q('.pl-note'), noteT = noteEl.firstChild;
   const last = { x: NaN, y: NaN, p: -1, ok: null, more: null, mx: NaN, my: NaN };
   let hideTimer = 0;
@@ -40,16 +40,13 @@ export function createAimView(after) {
       const x = Math.round(dx * 2) / 2, y = Math.round(dy * 2) / 2;
       if (x !== last.x || y !== last.y) {
         last.x = x; last.y = y;
-        bandBg.setAttribute('x2', x); bandBg.setAttribute('y2', y);
         band.setAttribute('x2', x); band.setAttribute('y2', y);
+        bandBg.setAttribute('x2', x); bandBg.setAttribute('y2', y);
         knob.setAttribute('cx', x); knob.setAttribute('cy', y);
       }
       const pq = Math.round(p * 20) / 20;
       if (pq !== last.p || ok !== last.ok) {
         last.p = pq; last.ok = ok;
-        const w = 1.75 + 1.25 * pq;
-        band.style.strokeWidth = w.toFixed(2);
-        bandBg.style.strokeWidth = (w + 2).toFixed(2);
         if (ok) root.setAttribute('data-ok', ''); else root.removeAttribute('data-ok');
         if (pq >= 1) root.setAttribute('data-full', ''); else root.removeAttribute('data-full');
       }
@@ -80,51 +77,34 @@ export function createAimView(after) {
     },
   };
 }
-const ARROW = `<svg viewBox="0 0 40 16" focusable="false"><path d="M2 8h32M27 2.5l8 5.5-8 5.5"/></svg>`;
+const GO = `<svg viewBox="0 0 68 30" focusable="false"><path class="go-bg" d="M5 15h52M43 5l15 10-15 10"/><path class="go-fg" d="M5 15h52M43 5l15 10-15 10"/></svg>`;
 export function createCoach(after) {
   const root = layer(after);
   const el = document.createElement('div');
   el.className = 'coach';
   el.innerHTML = `<div class="co-rot">
-      <i class="co-arr co-to">${ARROW}</i><i class="co-arr co-back">${ARROW}</i>
-      <i class="co-band"></i><i class="co-anchor"></i><i class="co-finger"></i>
+      <i class="co-span co-s1"></i><i class="co-span co-s2"></i><i class="co-span co-s3"></i>
+      <i class="co-trail"></i><i class="co-go">${GO}</i><i class="co-band"></i><i class="co-sling"></i><i class="co-kid"></i><i class="co-item"></i><i class="co-finger"></i>
     </div>
-    <span class="co-lbl co-l-to"></span><span class="co-lbl co-l-back"></span>`;
+    <span class="co-lbl co-l-self"></span><span class="co-lbl co-l-item"></span>`;
   root.appendChild(el);
   const q = (c) => el.querySelector(c);
-  const lTo = q('.co-l-to'), lBack = q('.co-l-back'), rot = q('.co-rot'), finger = q('.co-finger'), band = q('.co-band'), aTo = q('.co-to'), aBack = q('.co-back');
-  let invert = null;
-  const around = (e1, e2, m) => {
-    const a = e1.getBoundingClientRect(), b = e2.getBoundingClientRect();
-    const x1 = Math.min(a.left, b.left) - m, y1 = Math.min(a.top, b.top) - m, x2 = Math.max(a.right, b.right) + m, y2 = Math.max(a.bottom, b.bottom) + m;
-    return { x: Math.round(x1), y: Math.round(y1), w: Math.round(x2 - x1), h: Math.round(y2 - y1) };
-  };
+  const lSelf = q('.co-l-self'), lItem = q('.co-l-item'), spans = [...el.querySelectorAll('.co-span')];
+  let mode = null, flipped = null;
+  const box = (e, m) => { const r = e.getBoundingClientRect(); return { x: Math.round(r.left - m), y: Math.round(r.top - m), w: Math.round(r.width + m * 2), h: Math.round(r.height + m * 2) }; };
   return {
-    show(cx, cy, inv) {
+    show(cx, cy, same, flip) {
       el.style.transform = `translate(${Math.round(cx)}px, ${Math.round(cy)}px)`;
-      if (inv !== invert) {
-        invert = inv;
-        lTo.textContent = inv ? COACH.self : COACH.item;
-        lBack.textContent = inv ? COACH.item : COACH.self;
-        if (inv) el.setAttribute('data-invert', ''); else el.removeAttribute('data-invert');
+      if (!!flip !== flipped) { flipped = !!flip; if (flipped) el.setAttribute('data-flip', ''); else el.removeAttribute('data-flip'); }
+      if (same !== mode) {
+        mode = same;
+        const t = same ? COACH.same : COACH.opposite;
+        lSelf.textContent = t.self; lItem.textContent = t.item;
+        if (same) el.setAttribute('data-same', ''); else el.removeAttribute('data-same');
       }
       el.setAttribute('data-on', '');
     },
     hide() { el.removeAttribute('data-on'); },
-    rects() {
-      const o = el.getBoundingClientRect();
-      const m = new DOMMatrixReadOnly(getComputedStyle(rot).transform);
-      const x1 = finger.offsetLeft, y1 = finger.offsetTop, x2 = x1 + finger.offsetWidth + band.offsetWidth, y2 = y1 + finger.offsetHeight;
-      let l = Infinity, t = Infinity, r = -Infinity, btm = -Infinity;
-      for (const [x, y] of [[x1, y1], [x2, y1], [x2, y2], [x1, y2]]) {
-        const px = m.a * x + m.c * y, py = m.b * x + m.d * y;
-        if (px < l) l = px; if (px > r) r = px; if (py < t) t = py; if (py > btm) btm = py;
-      }
-      const pad = finger.offsetWidth * 0.2;
-      return [
-        { x: Math.round(o.left + l - pad), y: Math.round(o.top + t - pad), w: Math.round(r - l + pad * 2), h: Math.round(btm - t + pad * 2) },
-        around(lTo, aTo, 2), around(lBack, aBack, 2),
-      ];
-    },
+    rects() { return spans.map((e) => box(e, 0)).concat([lSelf, lItem].filter((e) => e.offsetWidth > 0).map((e) => box(e, 2))); },
   };
 }

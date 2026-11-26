@@ -6,10 +6,21 @@ const T = {
   tiltPlay: 20, tiltTitle: 50, tiltFinish: 38, tiltResult: 21, tiltResultNear: 40, yawResultNear: 10,
   resultBand: 0.42, resultSpan: 2.3, resultPx: 70,
   yawTitle: -18, yawFinish: 8,
-  fitMargin: 0.2, fitSouth: 1.4, fitPad: 8,
+  fitMargin: 0.02, fitSouth: 0.7, fitPad: 3,
   titleSpan: [3.3, 4.6], finishSpan: [4.4, 5.2],
   introSec: 1.2, introFastSec: 0.5, modeSec: 0.9, finishSec: 1.1,
-  shake: 0.011, shakeDecay: 8, speedZoom: 0.02, speedLead: 0.03,
+  shakeDecay: 15, speedZoom: 0.02, speedLead: 0.03,
+  view: 'whole',
+  nearPx: 78,
+  nearZoom: [1.3, 2.1],
+  nearLeadSec: 0.55, nearLeadMax: 0.9, nearLeadRate: 2.6,
+  viewOutSec: 0.35, viewInSec: 0.5,
+  nearAimK: 0,
+  viewCutSec: 0.45, viewJump: 0.8,
+  viewMargin: 0.25,
+  aimPullMin: 0.08,
+  wideSide: 0.02, wideMaxZoom: 1.6,
+  wideKeep: 1.1, wideAimRate: 5,
   sunAz: 46, sunEl: 34, sunCol: '#ffe0bd', sunPow: 1.25, sunSoft: 0.045,
   skyCol: '#c2d7ff', skyPow: 0.9, horizonCol: '#fff1df', bounceCol: '#ffd9a8', bouncePow: 0.42,
   winCol: '#ffd29c', winPow: 1.25, winSill: 0.07, winHead: 1.3, doorGlow: 0.55,
@@ -20,7 +31,9 @@ const T = {
   streakEvery: 4.8, streakSec: 1.6, streakPow: 0.95, streakW: 0.17,
   wallH: 0.5, wallSouthH: 0.22, halfH: 0.3, domaDrop: 0.1, lawnDrop: 0.15,
   plinthM: 0.47, plinthS: 2.5, plinthR: 0.42, soilT: 0.09, baseT: 0.34,
-  labelSize: 0.27, labelInk: 0.56, skirt: 0.008, fusumaOver: 0.012,
+  labelSize: 0.23, labelInk: 0.4, skirt: 0.008,
+  exitMark: [0.06, 0.42], exitText: 0.56, exitInk: 0.7,
+  fusumaOver: 0.012,
   reflBlur: 0.045, reflFade: 0.95, reflMaxLod: 3.2, reflStretch: 1.6, reflAmbient: 2.7,
   exposure: 0.8, saturation: 1.06, contrast: 0.3, bloom: 0.24, bloomThresh: 1.1,
   warm: [1.02, 1.0, 0.972], vignette: 0.24,
@@ -28,28 +41,78 @@ const T = {
   bg: ['#d3e4f3', '#a9c8e6', '#ffdcb8'],
   itemSpin: 13, itemLift: 0.3, itemLiftSec: 0.3, vanishSec: 0.28, glintStep: 0.16, faceSpeed: 0.05,
   smallR: 0.15, smallMax: 1.4,
-  dotGap: 0.22, dotMinGapPx: 12.5, dotR: 0.075, dotMinPx: 4.2, dotFlow: 0.55, dotStart: 0.34, dotMax: 80,
-  arrowLen: [0.55, 1.5], arrowW: [0.05, 0.1], tipSize: 0.46,
-  labelPx: 17, labelGap: 7, labelFollow: 13, bangPx: 46, handOff: [0, -0.03, 0],
+  visPlayer: 1.22, visCat: 1.15,
+  itemMinLen: 0.2, itemVisMax: 1.6,
+  dotGap: 0.26, dotMinGapPx: 16, dotR: 0.055, dotMinPx: 3.6, dotFlow: 0.5, dotMax: 80, dotAlpha: 0.88, dotEnd: 1.3,
+  flyLen: [0.4, 1.1], flyW: [0.045, 0.08], flyMinPx: 3.2, flyMinLenPx: [28, 62],
+  flyGap: 0.05, flyHint: 0.34,
+  flyCol: '#ffae2e', flyRim: '#fffaf0',
+  bandLen: [0.3, 1.0], bandMinLenPx: [18, 52], bandBase: 0.17, bandW: 0.024, bandMinPx: 1.6,
+  bandSlack: 0.55,
+  handGap: 0.03,
+  flySec: 0.08,
+  snapSec: 0.1, slackSec: 0.16,
+  flyFadeSec: 0.1,
+  weakRing: 1.25,
+  tipSize: 0.46, tipMinPx: 24,
+  hopV: [0.8, 26], hopH: [0.07, 0.55],
+  hopGrav: 15, hopBounce: 0.36, hopLand: 1.1,
+  hopSpin: [4, 16], hopRoll: 0.55, hopSettle: 8,
+  partN: [2, 7], partV: [1.2, 3.4], partFrame: 20,
+  shakeHit: 0.012, shakeWall: 0.02, shakeStrike: 0.03, shakeThrow: 0.0035,
+  wordMinV: 7, wordBigV: 22, wordPlayerV: 1.6, wordPx: [21, 31], wordSec: 0.55, wordMax: 2, wordGapPx: 90, wordEvery: 0.4,
+  strikeSec: 0.85, strikeW: [0.6, 0.76], strikePx: 26, comboPx: 30, strikeAt: [0.2, 0.8],
+  lineV: 2.6, lineEvery: 0.03,
+  fastV: [1.6, 4.5], trailBoost: 1.1, trailBoostLen: 1.1,
+  leanMax: 0.2, stretch: 0.1, squash: 0.3, squashHz: 4.5, squashV: 1.2,
+  tailSec: 0.6, tailV: 5, tailW: 0.032, tailLife: 0.13, kickPan: 0.007,
+  bangPx: 46,
   coachZone: [[-128, -98, 102, 74], [-60, -44, 120, 88], [26, 24, 102, 74]],
   trailW: 0.25, trailOpacity: 0.86, trailFade: 5.5, trailMin: 0.46, trailWhite: 0.14, trailGlow: 1.08, trailSnap: [1.0, 0.96],
+  ghostAlpha: 0.5, silAlpha: 0.5,
   ringR: 0.44, ringLift: 0.2, chevFlow: 0.32,
   autoWorkMs: 12.5, autoFrameMs: 42, autoFrames: 70, autoSkip: 30, autoStrikes: 2,
   snapSize: [720, 1200], snapMsaa: 4,
+  snapSide: 0.22, snapSouth: 1.0,
 };
 const QUALITY = {
-  high: { dpr: 2, msaa: 4, refl: 0.5, reflQ: 2, shadow: 2048, shq: 2, blk: 10, pcf: 16, bloom: true, tilt: true },
-  mid: { dpr: 2, msaa: 4, refl: 0.25, reflQ: 1, shadow: 2048, shq: 1, blk: 6, pcf: 10, bloom: false, tilt: true },
-  low: { dpr: 1.5, msaa: 2, refl: 0, reflQ: 0, shadow: 1024, shq: 0, blk: 4, pcf: 4, bloom: false, tilt: false },
+  high: { part: 520, dpr: 2, msaa: 4, refl: 0.5, reflQ: 2, shadow: 2048, shq: 2, blk: 10, pcf: 16, bloom: true, tilt: true },
+  mid: { part: 400, dpr: 2, msaa: 4, refl: 0.25, reflQ: 1, shadow: 2048, shq: 1, blk: 6, pcf: 10, bloom: false, tilt: true },
+  low: { part: 240, dpr: 1.5, msaa: 2, refl: 0, reflQ: 0, shadow: 1024, shq: 0, blk: 4, pcf: 4, bloom: false, tilt: false },
 };
-const ITEM_IDS = ['keshi', 'kutsu', 'toast', 'sumaho', 'kyoka', 'suito', 'rando'];
+function itemList() {
+  const c = typeof globalThis !== 'undefined' ? globalThis.NFCore : null;
+  if (c && Array.isArray(c.ITEMS) && c.ITEMS.length) return c.ITEMS.map((it) => String(it.id));
+  return ['keshi', 'kutsu', 'toast', 'kyoka', 'rando'];
+}
 const FLOOR_KIND = { oak: 0, hall: 1, tatami: 2, tile: 3, doma: 4 };
-const SMALL_KIND = { shoe: 1, slipper: 1, toy: 1 };
+const SMALL_KIND = { shoe: 1, slipper: 1, toy: 1, bottle: 1 };
+const PIN_KIND = { plush: 1, books: 1, bottle: 1, pillow: 1, basket: 1 };
+const HOP = {
+  plush: { h: 1, t: 1 }, books: { h: 0.8, t: 0.9 }, bottle: { h: 1.05, t: 1.25 }, pillow: { h: 1.4, t: 0.85 }, basket: { h: 0.75, t: 0.8 },
+  ball: { h: 1.25, t: 1.3 }, shoe: { h: 0.95, t: 1.1 }, slipper: { h: 0.9, t: 1 }, toy: { h: 1, t: 1.2 }, box: { h: 0.6, t: 0.6 }, cushion: { h: 0.85, t: 0.7 },
+  chair: { h: 0.3, t: 0.3, up: 1 }, robot: { h: 0.35, t: 0.35, up: 1 }, item: { h: 1, t: 1.2 },
+};
+const MATFX = {
+  books: { c: [[2.2, 2.15, 2.0], [2.3, 2.3, 2.25], [1.6, 0.55, 0.45], [0.5, 0.9, 1.7]], k: 5, w: ['バサッ', 'ドサッ'] },
+  plush: { c: [[2.3, 2.25, 2.15], [2.2, 2.0, 1.8]], k: 7, w: ['ポスッ', 'ボヨン'] },
+  pillow: { c: [[2.35, 2.35, 2.3], [2.1, 2.2, 2.35]], k: 7, w: ['ポスッ', 'ボヨン'] },
+  bottle: { c: [[1.3, 1.9, 2.6], [1.9, 2.3, 2.6]], k: 6, w: ['カラン', 'ポーン'] },
+  basket: { c: [[2.2, 1.4, 0.8], [0.8, 1.5, 2.1], [2.2, 2.2, 2.1]], k: 5, w: ['ガサッ', 'ドカッ'] },
+  ball: { c: [[2.4, 2.4, 2.3]], k: 1, w: ['ポーン', 'ボヨン'], big: 'ボヨン' },
+  cat: { c: [[2.3, 1.6, 0.9]], k: 7, w: [null, null] },
+};
+const MATFX_DEF = { c: [[2.6, 2.3, 1.6]], k: 1, w: ['ポーン', 'ドカッ'] };
+const WORDS = {
+  'ドカッ': '#ff5a3c', 'ガシャーン': '#ffb21e', 'ポーン': '#3fa9ff', 'ボヨン': '#ff7ab8', 'ポスッ': '#f59ac8', 'バサッ': '#5cb85c', 'ドサッ': '#e0762b',
+  'カラン': '#2ec4c4', 'ガサッ': '#c98a2e', 'ゴンッ': '#8a63d2', 'ガタン': '#f07f2a',
+};
 const D2R = Math.PI / 180;
 const FONT = '"Zen Maru Gothic", "Hiragino Maru Gothic ProN", "Hiragino Sans", "Yu Gothic", sans-serif';
 const HEIGHTS = MODELS.HEIGHTS || {};
 const easeInOut = (k) => (k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2);
 const smooth = (a, b, v) => { const k = clamp((v - a) / (b - a), 0, 1); return k * k * (3 - 2 * k); };
+const logK = (v, ab) => clamp(Math.log(Math.max(v, 1e-3) / ab[0]) / Math.log(ab[1] / ab[0]), 0, 1);
 const backOut = (k) => { const c = 2.2; const x = k - 1; return 1 + (c + 1) * x * x * x + c * x * x; };
 function srgb(hex) { const n = parseInt(hex.slice(1), 16); return [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255]; }
 function lin(hex, k = 1) { const c = new THREE.Color(hex); return new THREE.Vector3(c.r * k, c.g * k, c.b * k); }
@@ -382,9 +445,12 @@ void main(){ float a = 1.0 - smoothstep(0.12, 1.0, length(vUv)); gl_FragColor = 
 const UV_VS =  `
 varying vec2 vUv;
 void main(){ vUv = uv; gl_Position = projectionMatrix * viewMatrix * modelMatrix * vec4(position, 1.0); }`;
+const DECAL_VS =  `
+attribute float aInk; varying vec2 vUv; varying float vInk;
+void main(){ vUv = uv; vInk = aInk; gl_Position = projectionMatrix * viewMatrix * modelMatrix * vec4(position, 1.0); }`;
 const DECAL_FS =  `
-uniform sampler2D uMap; uniform vec3 uInk; uniform float uOpacity; varying vec2 vUv;
-void main(){ gl_FragColor = vec4(mix(vec3(1.0), uInk, texture2D(uMap, vUv).a * uOpacity), 1.0); }`;
+uniform sampler2D uMap; uniform vec3 uInk; varying vec2 vUv; varying float vInk;
+void main(){ gl_FragColor = vec4(mix(vec3(1.0), uInk, min(texture2D(uMap, vUv).a * vInk, 1.0)), 1.0); }`;
 const CHEV_FS =  `
 uniform vec3 uCol; uniform float uFlow, uGoal; varying vec2 vUv;
 void main(){
@@ -392,24 +458,29 @@ void main(){
   float y = vUv.y * 2.4 - fract(uFlow);
   float d = abs(fract(y + (x - 1.0) * 0.55) - 0.5);          // まん中が外へ突き出た「くの字」
   float aa = fwidth(y) * 1.2;
-  float a = (1.0 - smoothstep(0.11 - aa, 0.11 + aa, d)) * (1.0 - smoothstep(0.84, 0.92, x));
+  float a = (1.0 - smoothstep(0.14 - aa, 0.14 + aa, d)) * (1.0 - smoothstep(0.84, 0.92, x));
   a *= smoothstep(0.0, 0.22, vUv.y) * smoothstep(1.0, 0.72, vUv.y);
-  gl_FragColor = vec4(uCol * (1.0 + uGoal), a * 0.85);
+  gl_FragColor = vec4(uCol * (1.0 + uGoal), a * 0.95);
 }`;
 const GLOW_FS =  `
 uniform vec3 uCol; uniform float uPow; varying vec2 vUv;
 void main(){ float a = max(1.0 - length((vUv - vec2(0.5, 0.25)) * vec2(2.0, 1.3)), 0.0); gl_FragColor = vec4(uCol * (a * a * uPow), 1.0); }`;
 const TRAIL_VS =  `
-attribute float aSide, aLen; varying float vSide, vLen;
-void main(){ vSide = aSide; vLen = aLen; gl_Position = projectionMatrix * viewMatrix * vec4(position, 1.0); }`;
+attribute float aSide, aLen; attribute vec2 aOff; varying float vSide, vLen, vBoost;
+uniform vec4 uPar; uniform vec2 uBoost;     // 速いとき：先の方を何倍太くするか・その長さ（m）
+void main(){
+  vSide = aSide; vLen = aLen; vBoost = uBoost.x * exp(-max(uPar.y - aLen, 0.0) / uBoost.y);
+  gl_Position = projectionMatrix * viewMatrix * vec4(position + vec3(aOff.x, 0.0, aOff.y) * vBoost, 1.0);
+}`;
 const TRAIL_FS =  `
 uniform vec3 uCol; uniform vec4 uPar;   // 濃さ、先頭までの道のり、消えていく長さ、古い所に残す濃さ
-varying float vSide, vLen;
+varying float vSide, vLen, vBoost;
 void main(){
   float a = max(exp(-vSide * vSide * 3.0) * 0.8, 1.0 - smoothstep(0.16, 0.42, abs(vSide)));      // やわらかいふちに、しっかりした芯
   a *= max(uPar.w, exp(-(uPar.y - vLen) / uPar.z)) * uPar.x;
+  a = min(1.0, a * (1.0 + 0.45 * vBoost));                                                        // 速いときは先の方を濃く
   if (a < 0.012) discard;
-  gl_FragColor = vec4(uCol * a, a * 0.9);
+  gl_FragColor = vec4(uCol * a * (1.0 + 0.25 * vBoost), a * 0.9);
 }`;
 const RING_VS =  `
 uniform vec4 uP;      // 中心 x,y,z、半分の大きさ
@@ -433,14 +504,16 @@ attribute vec4 iCol; attribute vec3 iDir;   // 床の上の向き（x,z）、光
 varying vec2 vUv; varying vec4 vCol; varying float vType; varying float vAdd;
 void main(){
   vUv = position.xy; vCol = iCol; vType = iPar.z; vAdd = iDir.z;
-  if (iPar.z > 2.5) {          // 床に寝かせる（風の筋・波紋）
+  if (iPar.z > 2.5 && iPar.z < 4.5) {          // 床に寝かせる（風の筋・波紋）
     vec2 d = iDir.xy, n = vec2(-d.y, d.x);
     vec2 o = d * position.x * iPar.x * iPar.w + n * position.y * iPar.x;
     gl_Position = projectionMatrix * viewMatrix * vec4(iPos + vec3(o.x, 0.0, o.y), 1.0);
   } else {                     // いつもこちらを向く
     float c = cos(iPar.y), s = sin(iPar.y);
+    vec2 q = position.xy;
+    if (iPar.z > 4.5 && iPar.z < 5.5) q *= vec2(max(0.22, abs(cos(iPar.y * 1.7))), 0.62);    // 紙切れ：ひらひら裏返る細長い四角
     vec4 mv = viewMatrix * vec4(iPos, 1.0);
-    mv.xy += vec2(c * position.x - s * position.y, s * position.x + c * position.y) * iPar.x;
+    mv.xy += vec2(c * q.x - s * q.y, s * q.x + c * q.y) * iPar.x;
     gl_Position = projectionMatrix * mv;
   }
 }`;
@@ -452,7 +525,10 @@ void main(){
   else if (vType < 1.5) { vec2 q = abs(vUv); a = max(0.0, 1.0 - (q.x * q.y * 30.0 + r * 0.9)); a = a * a + 0.5 * smoothstep(0.3, 0.0, r); }   // 小さな星
   else if (vType < 2.5) { a = smoothstep(1.0, 0.25, r) * 0.6; }                                  // ほこり
   else if (vType < 3.5) { float e = 1.0 - abs(vUv.y); a = e * e * smoothstep(1.0, 0.1, abs(vUv.x)); }    // 風の筋
-  else { a = smoothstep(0.07, 0.0, abs(r - 0.9)) + 0.2 * smoothstep(0.9, 0.35, r) * step(r, 0.9); }   // 床の波紋
+  else if (vType < 4.5) { a = smoothstep(0.07, 0.0, abs(r - 0.9)) + 0.2 * smoothstep(0.9, 0.35, r) * step(r, 0.9); }   // 床の波紋
+  else if (vType < 5.5) { vec2 q = abs(vUv); a = 1.0 - smoothstep(0.78, 0.95, max(q.x, q.y)); }      // 紙切れ・布の切れはし（形は頂点で細くする）
+  else if (vType < 6.5) { a = smoothstep(1.0, 0.72, r); vec3 c = vCol.rgb * (0.8 + 0.6 * smoothstep(0.55, 0.0, length(vUv - vec2(-0.3, 0.3)))); a *= vCol.a; gl_FragColor = vec4(c * a, a * (1.0 - vAdd)); return; }   // しずく：光る点つき
+  else { a = smoothstep(1.0, 0.25, r); a = a * sqrt(a) * 0.92; }                                    // 綿：やわらかい玉
   a *= vCol.a;
   gl_FragColor = vec4(vCol.rgb * a, a * (1.0 - vAdd));
 }`;
@@ -558,8 +634,13 @@ void main(){
 const DOT_FS =  `
 uniform vec3 uCol; varying vec2 vUv; varying float vA; varying float vPx;
 void main(){
-  float kind = floor(vA * 0.5 + 0.01), al = vA - kind * 2.0;      // 0 = ふつうの点、1 以上 = しるし（行き着く先・当たって曲がる所）
+  float kind = floor(vA * 0.5 + 0.01), al = vA - kind * 2.0;      // 0 = ふつうの点、1 = 行き着く先のしるし、3 = 静かな輪
   float r = length(vUv), aa = 1.2 / max(vPx, 1.0);
+  if (kind > 2.5) {
+    float d = abs(r - 0.8), line = 1.0 - smoothstep(0.035 - aa, 0.035 + aa, d), edge = 1.0 - smoothstep(0.075 - aa, 0.075 + aa, d);
+    gl_FragColor = vec4(mix(vec3(0.07, 0.09, 0.2), vec3(1.0), line), max(line * 0.95, edge * 0.3) * al);
+    return;
+  }
   float core = 1.0 - smoothstep(0.44 - aa, 0.44 + aa, r);
   float ring = 1.0 - smoothstep(0.625 - aa, 0.625 + aa, r);
   float sh = (1.0 - smoothstep(0.55, 1.0, r)) * 0.42;
@@ -569,16 +650,16 @@ void main(){
 }`;
 const ARROW_VS =  `
 uniform vec4 uA;      // 始点 x,z、向き x,z
-uniform vec4 uB;      // 長さ、太さ、高さ
+uniform vec4 uB;      // 長さ、太さ、高さ、先の点々の長さ
 varying vec2 vP;
 void main(){
   float pad = uB.y * 2.8 + 0.08;
-  vP = vec2(position.x * (uB.x + pad * 2.0) - pad, position.z * pad);
+  vP = vec2(position.x * (uB.x + uB.w + pad * 2.0) - pad, position.z * pad);
   vec2 d = uA.zw, n = vec2(-d.y, d.x), w = uA.xy + d * vP.x + n * vP.y;
   gl_Position = projectionMatrix * viewMatrix * vec4(w.x, uB.z, w.y, 1.0);
 }`;
 const ARROW_FS =  `
-uniform vec4 uB; uniform vec3 uCol; uniform float uAlpha; varying vec2 vP;
+uniform vec4 uB; uniform vec3 uCol, uRim; uniform float uAlpha, uTime; varying vec2 vP;
 float sdSeg(vec2 p, vec2 a, vec2 b){ vec2 pa = p - a, ba = b - a; return length(pa - ba * clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0)); }
 float sdTri(vec2 p, vec2 p0, vec2 p1, vec2 p2){
   vec2 e0 = p1 - p0, e1 = p2 - p1, e2 = p0 - p2, v0 = p - p0, v1 = p - p1, v2 = p - p2;
@@ -588,14 +669,46 @@ float sdTri(vec2 p, vec2 p0, vec2 p1, vec2 p2){
   return -sqrt(d.x) * sign(d.y);
 }
 void main(){
-  float L = uB.x, w = uB.y, hl = w * 3.6, hw = w * 2.4;
-  float ws = w * mix(0.4, 1.0, clamp(vP.x / max(L - hl, 0.01), 0.0, 1.0));       // 根もとは細く
+  float L = uB.x, w = uB.y, hl = w * 3.4, hw = w * 2.3;
+  float ws = w * mix(0.5, 1.0, clamp(vP.x / max(L - hl, 0.01), 0.0, 1.0));       // 根もとは細く
   float d = sdSeg(vP, vec2(0.0), vec2(L - hl * 0.8, 0.0)) - ws;
-  d = min(d, sdTri(vP, vec2(L - hl, hw), vec2(L - hl, -hw), vec2(L, 0.0)) - 0.012);
-  float aa = fwidth(d) * 0.9 + 1e-5, ow = max(0.018, aa * 1.7);
+  d = min(d, sdTri(vP, vec2(L - hl, hw), vec2(L - hl, -hw), vec2(L, 0.0)) - 0.008);
+  float fade = 1.0;
+  float hx = vP.x - L - w * 1.6;
+  if (uB.w > 0.0 && hx > 0.0) {
+    // 矢じりの先：外へ流れる小さな点々（先へ行くほど小さく薄く）
+    float cell = max(uB.w / 3.0, w * 2.6), u = hx / cell - fract(uTime * 1.6), k = clamp(1.0 - hx / uB.w, 0.0, 1.0);
+    float dd = length(vec2((fract(u) - 0.5) * cell, vP.y)) - w * (0.35 + 0.45 * k);
+    if (dd < d) { d = dd; fade = k * smoothstep(0.0, cell * 0.4, hx); }
+  }
+  float aa = fwidth(d) * 0.9 + 1e-5, ow = max(0.014, aa * 1.6);
   float fill = 1.0 - smoothstep(-aa, aa, d), edge = 1.0 - smoothstep(ow - aa, ow + aa, d);
-  float sh = (1.0 - smoothstep(ow, ow + 0.06, d)) * 0.28;
-  gl_FragColor = vec4(mix(vec3(0.07, 0.09, 0.2), mix(vec3(1.0), uCol, fill), edge), max(edge, sh) * uAlpha);
+  float sh = (1.0 - smoothstep(ow, ow + 0.05, d)) * 0.3;
+  gl_FragColor = vec4(mix(vec3(0.07, 0.09, 0.2), mix(uRim, uCol, fill), edge), max(edge, sh) * uAlpha * fade);
+}`;
+const BAND_VS =  `
+uniform vec4 uA;      // 主人公 x,z、ゴムの向き x,z
+uniform vec4 uB;      // 根もと・先（主人公からの距離）、根もとの半分の幅、高さ
+uniform vec4 uC;      // 線の半分の太さ、たるみ 0..1、濃さ、時計
+varying vec2 vP;
+void main(){
+  float pad = 0.12;
+  vP = vec2(mix(uB.x - pad, uB.y + pad, position.x), position.z * (uB.z + pad));
+  vec2 d = uA.zw, n = vec2(-d.y, d.x), w = uA.xy + d * vP.x + n * vP.y;
+  gl_Position = projectionMatrix * viewMatrix * vec4(w.x, uB.w, w.y, 1.0);
+}`;
+const BAND_FS =  `
+uniform vec4 uB, uC; uniform vec3 uCol, uSlack; varying vec2 vP;
+float sdSeg(vec2 p, vec2 a, vec2 b){ vec2 pa = p - a, ba = b - a; return length(pa - ba * clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0)); }
+void main(){
+  vec2 p = vP;
+  float tt = clamp((p.x - uB.x) / max(uB.y - uB.x, 1e-3), 0.0, 1.0);
+  p.y += uC.y * 0.022 * sin((p.x - uB.x) * 38.0 + uC.w * 5.0) * sin(tt * 3.1416);        // たるんでいる間は、ゆるく波うつ（波の長さは m で決める。短いゴムがくしゃくしゃにならないように）
+  float d = min(sdSeg(p, vec2(uB.x, uB.z), vec2(uB.y, 0.0)), sdSeg(p, vec2(uB.x, -uB.z), vec2(uB.y, 0.0))) - uC.x;
+  float aa = fwidth(d) * 0.9 + 1e-5, ow = max(0.012, aa * 1.6);
+  float fill = 1.0 - smoothstep(-aa, aa, d), edge = 1.0 - smoothstep(ow - aa, ow + aa, d);
+  vec3 col = mix(uCol, uSlack, uC.y);
+  gl_FragColor = vec4(mix(vec3(1.0), col, fill), edge * mix(1.0, 0.8, uC.y) * uC.z);
 }`;
 const TIP_VS =  `
 uniform vec4 uA;      // 中心 x,z、向き x,z
@@ -615,29 +728,18 @@ void main(){
   gl_FragColor = vec4(mix(vec3(1.0), c, t.a), max(t.a * 0.86, o * 0.8) * uAlpha);
 }`;
 const SPR_VS =  `
-attribute vec4 iRect; attribute vec4 iUv; attribute vec4 iCol; attribute float iMode;
+attribute vec4 iRect; attribute vec4 iUv; attribute vec4 iCol; attribute float iRot;
 uniform vec2 uView;
-varying vec2 vUv; varying vec4 vCol; varying vec4 vE; varying float vMode; varying vec2 vL; varying vec2 vS;
+varying vec2 vUv; varying vec4 vCol;
 void main(){
-  vec2 c = position.xy, p = iRect.xy + vec2(c.x, -c.y) * 0.5 * iRect.zw;
-  vUv = mix(iUv.xy, iUv.zw, c * 0.5 + 0.5); vCol = iCol; vE = iUv; vMode = iMode; vL = c * 0.5 * iRect.zw; vS = iRect.zw;
+  vec2 c = position.xy, q = vec2(c.x, -c.y) * 0.5 * iRect.zw, p = iRect.xy + vec2(q.x * cos(iRot) - q.y * sin(iRot), q.x * sin(iRot) + q.y * cos(iRot));
+  vUv = mix(iUv.xy, iUv.zw, c * 0.5 + 0.5); vCol = iCol;
   gl_Position = vec4(p.x / uView.x * 2.0 - 1.0, 1.0 - p.y / uView.y * 2.0, 0.0, 1.0);
 }`;
 const SPR_FS =  `
-${GL_COMMON}
 uniform sampler2D uMap;
-varying vec2 vUv; varying vec4 vCol; varying vec4 vE; varying float vMode; varying vec2 vL; varying vec2 vS;
-void main(){
-  if (vMode < 0.5) { vec4 t = texture2D(uMap, vUv); gl_FragColor = vec4(t.rgb * vCol.rgb * vCol.a, t.a * vCol.a); }
-  else {     // 角の丸い札（ふちは vE の色）
-    float pad = 7.0; vec2 hs = vS * 0.5 - pad; float d = sdRBox(vL, hs, min(hs.x, hs.y));
-    float fill = 1.0 - smoothstep(-0.6, 0.6, d);
-    float ring = fill * smoothstep(-2.6, -1.6, d);
-    float sh = (1.0 - smoothstep(-1.0, pad, d)) * 0.26 * (1.0 - fill);
-    vec3 c = mix(vCol.rgb, vE.rgb, ring * vE.a);
-    gl_FragColor = vec4(c * fill + vec3(0.07, 0.09, 0.2) * sh, fill + sh) * vCol.a;
-  }
-}`;
+varying vec2 vUv; varying vec4 vCol;
+void main(){ vec4 t = texture2D(uMap, vUv); gl_FragColor = vec4(t.rgb * vCol.rgb * vCol.a, t.a * vCol.a); }`;
 class Batch {
   constructor() { this.buckets = new Map(); }
   add(geometry, matrix, material, o = {}) {
@@ -724,6 +826,7 @@ function buildHouse(L) {
   const door = { x1: L.door.x1 / 1000, x2: L.door.x2 / 1000 };
   const info = {
     W, H, Tk, door, rooms: [], occ: [], circ: [], wins: [], live: [], flat: [],
+    bodies0: (L.bodies || []).map((q) => ({ x: q.x / 1000, z: q.y / 1000, r: q.r / 1000 })),
     start: { x: L.start.x / 1000, z: L.start.y / 1000 },
     px0: -T.plinthM, pz0: -T.plinthM, px1: W + T.plinthM, pz1: H + T.plinthS,
   };
@@ -971,23 +1074,27 @@ function ensureFont(done) {
   } catch (err) { done(); }
 }
 function drawGlyphs(cv) {
-  const g = cv.getContext('2d'), G = {};
+  const g = cv.getContext('2d'), G = {}, ROW = 150;
   g.clearRect(0, 0, cv.width, cv.height);
   g.textBaseline = 'alphabetic'; g.lineJoin = 'round';
-  let x = 6;
-  const put = (key, text, font, y0, hc, base, fill, stroke, sw) => {
+  let x = 6, y0 = 8;
+  const put = (key, text, font, base, fill, stroke, sw, ink) => {
     g.font = font;
-    const adv = g.measureText(text).width, pad = 6 + (sw || 0) / 2, w = Math.ceil(adv + pad * 2);
+    const adv = g.measureText(text).width, pad = 6 + (sw || 0) / 2 + (ink ? 4 : 0), w = Math.ceil(adv + pad * 2);
+    if (x + w > cv.width - 6) { x = 6; y0 += ROW + 6; }
+    if (ink) { g.strokeStyle = ink; g.lineWidth = sw + 8; g.strokeText(text, x + pad, y0 + base); }
     if (stroke) { g.strokeStyle = stroke; g.lineWidth = sw; g.strokeText(text, x + pad, y0 + base); }
     g.fillStyle = fill; g.fillText(text, x + pad, y0 + base);
-    G[key] = { u0: x / cv.width, u1: (x + w) / cv.width, v0: 1 - (y0 + hc) / cv.height, v1: 1 - y0 / cv.height, w, h: hc, adv, pad };
+    G[key] = { u0: x / cv.width, u1: (x + w) / cv.width, v0: 1 - (y0 + ROW) / cv.height, v1: 1 - y0 / cv.height, w, h: ROW, adv, pad };
     x += w + 6;
   };
-  for (const ch of '0123456789+.') put(ch, ch, `900 64px ${FONT}`, 0, 84, 66, '#fff');
-  put('u', 'm/秒', `700 44px ${FONT}`, 0, 84, 64, '#fff');
-  x = 6;
-  put('!', '！', `900 104px ${FONT}`, 92, 150, 122, PAL.red, '#fff', 16);
-  put('…', '…', `900 96px ${FONT}`, 92, 150, 112, PAL.ink, '#fff', 16);
+  put('!', '！', `900 104px ${FONT}`, 122, PAL.red, '#fff', 16);
+  put('…', '…', `900 96px ${FONT}`, 112, PAL.ink, '#fff', 16);
+  for (let i = 0; i <= 9; i++) put(String(i), String(i), `900 104px ${FONT}`, 120, '#ffb21e', '#fff', 18, 'rgba(30,39,66,0.85)');
+  for (const w in WORDS) put(w, w, `900 92px ${FONT}`, 114, WORDS[w], '#fff', 18, 'rgba(30,39,66,0.85)');
+  put('strike', 'ストライク！', `900 112px ${FONT}`, 124, '#ff5a3c', '#fff', 20, 'rgba(30,39,66,0.9)');
+  put('smash', 'コ ぶっ飛ばし！', `900 92px ${FONT}`, 114, '#ffb21e', '#fff', 18, 'rgba(30,39,66,0.85)');
+  put('ko', 'コ！', `900 92px ${FONT}`, 114, '#ffb21e', '#fff', 18, 'rgba(30,39,66,0.85)');
   return G;
 }
 const ENV_FS =  `
@@ -1006,6 +1113,7 @@ function lerpPose(o, a, b, k) {
   o.tilt = lerp(a.tilt, b.tilt, k); o.dist = lerp(a.dist, b.dist, k); o.panX = lerp(a.panX, b.panX, k); o.panY = lerp(a.panY, b.panY, k);
 }
 export function createStage(canvas, opts = {}) {
+  const ITEM_IDS = itemList();
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, alpha: false, depth: false, stencil: false, powerPreference: 'high-performance' });
   renderer.setPixelRatio(1);
   renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFShadowMap; renderer.shadowMap.autoUpdate = false;
@@ -1061,8 +1169,8 @@ export function createStage(canvas, opts = {}) {
   const dustMat = new THREE.ShaderMaterial({ ...add, uniforms: { uCol: { value: lin(T.dustCol, 1.5) }, uTime: U.time, uSunDir: U.sunDir, uPx: { value: 2 } }, vertexShader: DUST_VS, fragmentShader: DUST_FS });
   const labelCanvas = document.createElement('canvas'); labelCanvas.width = 1024; labelCanvas.height = 512;
   const labelTex = new THREE.CanvasTexture(labelCanvas); labelTex.anisotropy = maxAniso;
-  const labelMat = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, blending: THREE.MultiplyBlending, uniforms: { uMap: { value: labelTex }, uInk: { value: lin(PAL.floorInk) }, uOpacity: { value: T.labelInk } }, vertexShader: UV_VS, fragmentShader: DECAL_FS });
-  const chevMat = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, uniforms: { uCol: { value: lin(PAL.sun, 1.25) }, uFlow: { value: 0 }, uGoal: U.goal }, vertexShader: UV_VS, fragmentShader: CHEV_FS });
+  const labelMat = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, blending: THREE.MultiplyBlending, uniforms: { uMap: { value: labelTex }, uInk: { value: lin(PAL.floorInk) } }, vertexShader: DECAL_VS, fragmentShader: DECAL_FS });
+  const chevMat = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, uniforms: { uCol: { value: lin(PAL.sun, 0.95) }, uFlow: { value: 0 }, uGoal: U.goal }, vertexShader: UV_VS, fragmentShader: CHEV_FS });
   const glowMat = new THREE.ShaderMaterial({ ...add, uniforms: { uCol: { value: lin(T.glowCol) }, uPow: { value: 0.3 } }, vertexShader: UV_VS, fragmentShader: GLOW_FS });
   const pmrem = new THREE.PMREMGenerator(renderer);
   let envRT = null;
@@ -1132,19 +1240,20 @@ export function createStage(canvas, opts = {}) {
     c.near = Math.max(1, p.dist - 24); c.far = p.dist + 46;
     c.updateProjectionMatrix(); c.updateMatrixWorld();
   }
-  function fitPlay(o, m = T.fitMargin, south = T.fitSouth, pad = T.fitPad, tilt = T.tiltPlay) {
+  function fitPlay(o, m = T.fitMargin, south = T.fitSouth, pad = T.fitPad, tilt = T.tiltPlay, garden = false) {
     const h = house;
     o.yaw = 0; o.tilt = tilt * D2R; o.tx = h.W / 2; o.ty = 0.15; o.tz = (h.H + south) / 2; o.dist = 40; o.panX = 0; o.panY = 0;
     const l = pad, r = cssW - pad, t = insets.top + pad, b = Math.max(t + 40, cssH - insets.bottom - pad);
-    const nx0 = l / cssW * 2 - 1, nx1 = r / cssW * 2 - 1, ny1 = 1 - t / cssH * 2, ny0 = 1 - b / cssH * 2;
+    const nx0 = l / cssW * 2 - 1, nx1 = r / cssW * 2 - 1, ny1 = 1 - t / cssH * 2, ny0 = 1 - b / cssH * 2, zs = garden ? h.H + south : h.H + m;
     fitCam.aspect = cssW / cssH;
     for (let it = 0; it < 14; it++) {
       applyPose(o, fitCam);
       let x0 = 9, x1 = -9, y0 = 9, y1 = -9;
       for (let i = 0; i < 8; i++) {
-        _v.set(i & 1 ? h.W + m : -m, i & 2 ? T.wallH : 0, i & 4 ? h.H + south : -m).project(fitCam);
+        _v.set(i & 1 ? h.W + m : -m, i & 2 ? (i & 4 ? T.wallSouthH : T.wallH) : 0, i & 4 ? zs : -m).project(fitCam);
         x0 = Math.min(x0, _v.x); x1 = Math.max(x1, _v.x); y0 = Math.min(y0, _v.y); y1 = Math.max(y1, _v.y);
       }
+      _v.set(h.W / 2, 0, h.H + south).project(fitCam); y0 = Math.min(y0, _v.y);
       const s = Math.max((x1 - x0) / (nx1 - nx0), (y1 - y0) / (ny1 - ny0));
       o.dist *= s;
       o.panX += (nx0 + nx1) / 2 - (o.panX + ((x0 + x1) / 2 - o.panX) / s);
@@ -1172,14 +1281,55 @@ export function createStage(canvas, opts = {}) {
         o.tilt = T.tiltResultNear * D2R; o.yaw = (T.yawResultNear + 2.5 * Math.sin(time * 0.24)) * D2R;
         o.dist = Math.max(T.resultSpan, hb / T.resultPx) * cssH / Math.max(48, hb) / (2 * th) * (1 - 0.04 * clamp((time - camT0) / 5, 0, 1));
         o.panX = 0; o.panY = py;
-      } else {
-        copyPose(o, posePlay);
-        if (mode === 'result') { o.yaw = 2.2 * Math.sin(time * 0.2) * D2R; o.tilt = T.tiltResult * D2R; o.dist *= 1.03; }
-      }
+      } else if (mode === 'result') {
+        copyPose(o, posePlay); o.yaw = 2.2 * Math.sin(time * 0.2) * D2R; o.tilt = T.tiltResult * D2R; o.dist *= 1.03;
+      } else copyPose(o, poseZoom);
     }
   }
+  let viewMode = T.view === 'wide' || T.view === 'whole' ? T.view : 'near';
+  const poseWhole = mkPose(), poseZoom = mkPose();
+  const vw = { k: 0, kv: 0, want: 0, aim: false, hasPath: false, pathZ: 0, lx: 0, lz: 0, az: 0, init: false, px: 0, pz: 0 };
+  function refitPlay() {
+    fitPlay(posePlay); playDirty = false;
+    const py = (insets.bottom - insets.top) / cssH, th = Math.tan(T.fov * D2R / 2), w = poseWhole;
+    fitCam.aspect = cssW / cssH; applyPose(posePlay, fitCam);
+    _v.set(0, 0, 1).applyQuaternion(fitCam.quaternion); _v2.set(0, 1, 0).applyQuaternion(fitCam.quaternion);
+    w.yaw = 0; w.tilt = posePlay.tilt; w.panX = 0; w.panY = py; w.ty = posePlay.ty;
+    w.dist = (fitCam.position.y - w.ty) / (_v.y - py * th * _v2.y);
+    w.tx = fitCam.position.x - w.dist * _v.x + py * w.dist * th * _v2.x;
+    w.tz = fitCam.position.z - w.dist * _v.z + py * w.dist * th * _v2.z;
+  }
+  function softCut(sec) {
+    if (!poseOk) return;
+    const rest = Math.max(0, camT0 + camDur - time);
+    copyPose(poseFrom, pose); camT0 = time; camDur = Math.max(rest, sec);
+  }
+  function updateView(dt) {
+    const h = house, w = poseWhole, th = Math.tan(T.fov * D2R / 2), pxWhole = cssH / (2 * th * w.dist);
+    const px = viewMode === 'wide' ? clamp(cssW / (h.W + T.wideSide * 2), pxWhole, pxWhole * T.wideMaxZoom)
+      : viewMode === 'near' ? clamp(T.nearPx, pxWhole * T.nearZoom[0], pxWhole * T.nearZoom[1]) : pxWhole;
+    const dz = w.dist * pxWhole / px, hx = cssW / (2 * px), hz = Math.max(60, cssH - insets.top - insets.bottom) / (2 * px * Math.cos(w.tilt));
+    const sp = playerSpeed, lm = sp > 1e-3 && playerRec ? Math.min(sp * T.nearLeadSec, T.nearLeadMax) / sp : 0;
+    vw.lx = damp(vw.lx, playerRec ? playerRec.vx * lm : 0, T.nearLeadRate, dt); vw.lz = damp(vw.lz, playerRec ? playerRec.vz * lm : 0, T.nearLeadRate, dt);
+    let cx = playerX + vw.lx, cz = playerZ + vw.lz;
+    if (viewMode === 'wide') {
+      let off = vw.lz;
+      if (vw.aim && vw.hasPath) { const keep = Math.max(0.2, hz - T.wideKeep); off = clamp((vw.pathZ - playerZ) / 2, -keep, keep); }
+      vw.az = damp(vw.az, off, T.wideAimRate, dt);
+      cx = h.W / 2; cz = playerZ + vw.az;
+    }
+    const m = T.viewMargin, x0 = h.px0 - m + hx, x1 = h.px1 + m - hx, z0 = h.pz0 - m + hz, z1 = h.pz1 + m - hz;
+    cx = x0 <= x1 ? clamp(cx, x0, x1) : (h.px0 + h.px1) / 2;
+    cz = z0 <= z1 ? clamp(cz, z0, z1) : (h.pz0 + h.pz1) / 2;
+    const tau = (vw.want > vw.k ? T.viewInSec : T.viewOutSec) / 2.4, om = 2 / tau, x = om * dt, e = 1 / (1 + x + 0.48 * x * x + 0.235 * x * x * x), ch = vw.k - vw.want, tmp = (vw.kv + om * ch) * dt;
+    vw.kv = (vw.kv - om * tmp) * e; vw.k = vw.want + (ch + tmp) * e;
+    const k = clamp(vw.k, 0, 1), d = Math.exp(lerp(Math.log(w.dist), Math.log(dz), k));
+    const ox = lerp((playerX - w.tx) / w.dist, (playerX - cx) / dz, k), oz = lerp((playerZ - w.tz) / w.dist, (playerZ - cz) / dz, k);
+    copyPose(poseZoom, w); poseZoom.dist = d; poseZoom.tx = playerX - ox * d; poseZoom.tz = playerZ - oz * d;
+  }
   function updateCamera(dt) {
-    if (playDirty) { fitPlay(posePlay); playDirty = false; }
+    if (playDirty) refitPlay();
+    updateView(dt);
     if (camMode === 'play') placeLabels();
     if (!poseOk) { poseOk = true; goalPose(camMode, pose); copyPose(poseFrom, pose); }
     if (time < camT0) camT0 = time - camDur;
@@ -1192,7 +1342,8 @@ export function createStage(canvas, opts = {}) {
     copyPose(poseLive, pose);
     poseLive.dist *= 1 - T.speedZoom * speedK;
     poseLive.tx += (playerX - pose.tx) * T.speedLead * speedK; poseLive.tz += (playerZ - pose.tz) * T.speedLead * speedK;
-    poseLive.panX += shake * Math.sin(time * 53); poseLive.panY += shake * Math.cos(time * 67);
+    camKick.x = damp(camKick.x, 0, 13, dt); camKick.y = damp(camKick.y, 0, 13, dt);
+    poseLive.panX += shake * Math.sin(time * 53) + camKick.x; poseLive.panY += shake * Math.cos(time * 67) + camKick.y;
     cam.aspect = cssW / cssH;
     applyPose(poseLive, cam);
     _v.set(house.W / 2 - 0.5, 0, house.H / 2).project(cam); _v2.set(house.W / 2 + 0.5, 0, house.H / 2).project(cam);
@@ -1311,7 +1462,7 @@ export function createStage(canvas, opts = {}) {
     labelGeo = new THREE.BufferGeometry();
     addLayoutObj(new THREE.Mesh(labelGeo, labelMat)).renderOrder = 6;
     drawLabels();
-    addLayoutObj(new THREE.Mesh(flatQuad(dcx - 0.24, h.H + 0.86, dcx + 0.24, h.H + 1.34, -T.domaDrop + 0.004), chevMat)).renderOrder = 6;
+    addLayoutObj(new THREE.Mesh(flatQuad(dcx - 0.24, h.H + T.exitMark[0], dcx + 0.24, h.H + T.exitMark[1], -T.domaDrop + 0.004), chevMat)).renderOrder = 6;
     addLayoutObj(new THREE.Mesh(flatQuad(dcx - 1.5, h.H - 0.3, dcx + 1.5, h.H + 2.3, -T.domaDrop + 0.01), glowMat)).renderOrder = 7;
     fitSun(); bakeDirty = true; playDirty = true;
     resetFx();
@@ -1324,6 +1475,7 @@ export function createStage(canvas, opts = {}) {
       if (x - hw < r.x1 || x + hw > r.x2 || z - hd < r.z1 || z + hd > r.z2) return false;
       for (const o of h.occ) if (x + hw > o.x1 && x - hw < o.x2 && z + hd > o.z1 - o.h * tan && z - hd < o.z2) return false;
       for (const o of h.flat) if (x + hw > o.x1 && x - hw < o.x2 && z + hd > o.z1 && z - hd < o.z2) return false;
+      for (const o of h.bodies0) if (x + hw > o.x - o.r - 0.06 && x - hw < o.x + o.r + 0.06 && z + hd > o.z - o.r - 0.3 && z - hd < o.z + o.r + 0.06) return false;
       if (useAvoid) for (const o of avoidW) if (x + hw > o.x1 && x - hw < o.x2 && z + hd > o.z1 && z - hd < o.z2) return false;
       return true;
     };
@@ -1349,7 +1501,7 @@ export function createStage(canvas, opts = {}) {
     g.font = `700 ${fs}px ${FONT}`; g.fillStyle = '#fff'; g.textBaseline = 'alphabetic';
     labelSlots = [];
     for (const r of h.rooms) if (r.name && r.label) labelSlots.push({ text: r.name, room: r, y: r.doma ? -T.domaDrop : 0, size: T.labelSize });
-    labelSlots.push({ text: 'ここから外へ', room: null, x: (h.door.x1 + h.door.x2) / 2, z: h.H + 0.74, y: -T.domaDrop, size: 0.15 });
+    labelSlots.push({ text: 'ここから外へ', room: null, x: (h.door.x1 + h.door.x2) / 2, z: h.H + T.exitText, y: -T.domaDrop, size: 0.14 });
     let cx = 8, cy = 0;
     for (const it of labelSlots) {
       const sp = fs * 0.12; let w = -sp;
@@ -1370,12 +1522,12 @@ export function createStage(canvas, opts = {}) {
     labelDirty = false; lbW = cssW; lbH = cssH; lbT = insets.top; lbB = insets.bottom;
     avoidW.length = 0;
     if (cssW > 2 && cssH > 2) {
-      fitPlay(posePlay); playDirty = false; fitCam.aspect = cssW / cssH; applyPose(posePlay, fitCam);
+      refitPlay(); fitCam.aspect = cssW / cssH; applyPose(posePlay, fitCam);
       const cxp = cssW / 2, cyp = (insets.top + cssH - insets.bottom) / 2;
       if (avoidPx) for (const q of avoidPx) avoidW.push(screenToFloor(q.x - rectL, q.y - rectT, q.x - rectL + q.w, q.y - rectT + q.h, {}));
       else for (const q of T.coachZone) avoidW.push(screenToFloor(cxp + q[0], cyp + q[1], cxp + q[0] + q[2], cyp + q[1] + q[3], {}));
     }
-    const pos = [], uv = [];
+    const pos = [], uv = [], ink = [];
     for (const it of labelSlots) {
       let x = it.x, z = it.z;
       if (it.room) {
@@ -1386,12 +1538,14 @@ export function createStage(canvas, opts = {}) {
       const y = it.y + 0.003, x0 = x - it.ww / 2, x1 = x + it.ww / 2, z0 = z - it.hh / 2, z1 = z + it.hh / 2;
       pos.push(x0, y, z0, x0, y, z1, x1, y, z1, x0, y, z0, x1, y, z1, x1, y, z0);
       uv.push(it.u0, it.v1, it.u0, it.v0, it.u1, it.v0, it.u0, it.v1, it.u1, it.v0, it.u1, it.v1);
+      for (let i = 0; i < 6; i++) ink.push(it.room ? T.labelInk : T.exitInk);
     }
     labelGeo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
     labelGeo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+    labelGeo.setAttribute('aInk', new THREE.Float32BufferAttribute(ink, 1));
     labelGeo.computeBoundingSphere();
   }
-  const PMAX = 400, PS = 24;
+  const PMAX = 520, PS = 26;
   const PD = new Float32Array(PMAX * PS); let pN = 0;
   const quadXY = new Float32Array([-1, -1, 0, 1, -1, 0, 1, 1, 0, -1, -1, 0, 1, 1, 0, -1, 1, 0]);
   const quadXZ = new Float32Array([-1, 0, -1, -1, 0, 1, 1, 0, 1, -1, 0, -1, 1, 0, 1, 1, 0, -1]);
@@ -1402,17 +1556,18 @@ export function createStage(canvas, opts = {}) {
   const premul = { transparent: true, depthWrite: false, blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor };
   const partMesh = new THREE.Mesh(partGeo, new THREE.ShaderMaterial({ ...premul, side: THREE.DoubleSide, vertexShader: PART_VS, fragmentShader: PART_FS }));
   partMesh.frustumCulled = false; partMesh.renderOrder = 12; scene.add(partMesh);
+  let pFloor = -99, pReal = 0;
   function emit(type, x, y, z, vx, vy, vz, life, s0, s1, r, g, b, a, addv, rot, rv, drag, grav, dx, dz, st, delay) {
-    if (pN >= PMAX) return;
+    if (pN >= Q.part) return;
     const o = pN++ * PS;
     PD[o] = x; PD[o + 1] = y; PD[o + 2] = z; PD[o + 3] = vx; PD[o + 4] = vy; PD[o + 5] = vz; PD[o + 6] = 0; PD[o + 7] = life; PD[o + 8] = s0; PD[o + 9] = s1;
     PD[o + 10] = rot; PD[o + 11] = rv; PD[o + 12] = type; PD[o + 13] = r; PD[o + 14] = g; PD[o + 15] = b; PD[o + 16] = a; PD[o + 17] = addv; PD[o + 18] = drag; PD[o + 19] = grav;
-    PD[o + 20] = dx; PD[o + 21] = dz; PD[o + 22] = st; PD[o + 23] = delay;
+    PD[o + 20] = dx; PD[o + 21] = dz; PD[o + 22] = st; PD[o + 23] = delay; PD[o + 24] = pFloor; PD[o + 25] = pReal;
   }
-  function updateParticles(dt) {
+  function updateParticles(wdt, rdt) {
     let w = 0;
     for (let i = 0; i < pN; i++) {
-      const o = i * PS;
+      const o = i * PS, dt = PD[o + 25] > 0 ? rdt : wdt;
       let k = 0, vis = 1;
       if (PD[o + 23] > 0) { PD[o + 23] -= dt; vis = 0; }
       else {
@@ -1421,11 +1576,16 @@ export function createStage(canvas, opts = {}) {
         const dr = Math.exp(-PD[o + 18] * dt);
         PD[o + 3] *= dr; PD[o + 4] = PD[o + 4] * dr - PD[o + 19] * dt; PD[o + 5] *= dr;
         PD[o] += PD[o + 3] * dt; PD[o + 1] += PD[o + 4] * dt; PD[o + 2] += PD[o + 5] * dt; PD[o + 10] += PD[o + 11] * dt;
+        if (PD[o + 1] < PD[o + 24]) {
+          PD[o + 1] = PD[o + 24]; PD[o + 4] = Math.abs(PD[o + 4]) * 0.28; PD[o + 3] *= 0.45; PD[o + 5] *= 0.45; PD[o + 11] *= 0.4;
+          if (PD[o + 4] < 0.25) { PD[o + 4] = 0; PD[o + 19] = 0; PD[o + 18] = Math.max(PD[o + 18], 6); }
+        }
         k = PD[o + 6] / PD[o + 7];
       }
       const type = PD[o + 12], e = 1 - (1 - k) * (1 - k);
       let al = PD[o + 16] * vis * (type === 4 ? 1 - k : Math.pow(1 - k, 1.4));
       if (type === 0) al *= Math.min(1, k * 8) * (0.65 + 0.35 * Math.sin(k * 26 + i));
+      else if (type >= 5) al = PD[o + 16] * vis * (1 - smooth(0.7, 1, k));
       pPos.array[w * 3] = PD[o]; pPos.array[w * 3 + 1] = PD[o + 1]; pPos.array[w * 3 + 2] = PD[o + 2];
       pPar.array[w * 4] = PD[o + 8] + (PD[o + 9] - PD[o + 8]) * e; pPar.array[w * 4 + 1] = PD[o + 10]; pPar.array[w * 4 + 2] = type; pPar.array[w * 4 + 3] = PD[o + 22];
       pCol.array[w * 4] = PD[o + 13]; pCol.array[w * 4 + 1] = PD[o + 14]; pCol.array[w * 4 + 2] = PD[o + 15]; pCol.array[w * 4 + 3] = al;
@@ -1499,16 +1659,22 @@ export function createStage(canvas, opts = {}) {
     for (const t of [0.37, 1.93, 3.1]) { an(t, 0.05, probeSt); if (Math.abs(sig() - s0) > 1e-6) return false; }
     return true;
   }
+  function itemVis(bk) {
+    const bb = bk && bk.geo ? bk.geo.boundingBox : null;
+    if (!bb) return 1;
+    return clamp(T.itemMinLen / Math.max(bb.max.x - bb.min.x, bb.max.z - bb.min.z, 0.02), 1, T.itemVisMax);
+  }
   function makeModel(def) {
     const kind = def.kind;
     let obj = null;
-    try { obj = kind === 'player' ? MODELS.createChild() : kind === 'item' ? MODELS.createItem(itemId(def.item)) : MODELS.createBody(kind, { r: def.r, variant: def.variant }); }
+    try { obj = kind === 'player' ? MODELS.createChild() : kind === 'item' ? MODELS.createItem(itemId(def.item)) : MODELS.createBody(kind, { r: def.r, variant: def.variant, seed: pinSeed(def) }); }
     catch (err) { console.warn('[stage] 形を作れなかった', kind, err); }
     return obj || new Builder().cyl(def.r || 0.15, def.r || 0.15, 0.2, PAL.steel, { y: 0.1, cls: 'soft' }).build();
   }
+  function pinSeed(def) { return PIN_KIND[def.kind] ? (def.seed != null ? idNum(def.seed) : idNum(def.id) * 7 + 3) % 12 : undefined; }
   function makeBody(def) {
     const kind = def.kind, isPlayer = kind === 'player', isItem = kind === 'item', root = new THREE.Group();
-    const key = isPlayer ? null : isItem ? 'item|' + itemId(def.item) : kind + '|' + (def.variant || '') + '|' + Math.round((def.r || 0) * 1000);
+    const key = isPlayer ? null : isItem ? 'item|' + itemId(def.item) : kind + '|' + (def.variant || '') + '|' + Math.round((def.r || 0) * 1000) + (PIN_KIND[kind] ? '|' + pinSeed(def) : '');
     let bk = key ? bodyKinds.get(key) : null, obj = null;
     if (!bk || !bk.rigid || bk.rest) { obj = makeModel(def); root.add(obj); }
     if (key && !bk) {
@@ -1524,13 +1690,19 @@ export function createStage(canvas, opts = {}) {
     }
     const hn = idNum(def.id), h1 = hash01(hn), h2 = hash01(hn + 5.3), ud = obj ? obj.userData : {}, r0 = def.r || 0.15;
     const r = {
-      id: def.id, kind, item: def.item, variant: def.variant, root, obj, twins: [], hand: ud.hand || null, handObj: null, handId: null, inst: -1,
+      id: def.id, kind, item: def.item, variant: def.variant, root, obj, twins: [], inst: -1,
       h: ud.h ?? (bk && bk.h) ?? HEIGHTS[kind] ?? 0.3, r: def.r || 0.15, api: ud.api || null, anim: bk && bk.rigid ? null : typeof ud.anim === 'function' ? ud.anim : null,
       isPlayer, isCat: kind === 'cat', isItem, faceVel: isPlayer || kind === 'cat' || kind === 'robot',
       x: 0, y: 0, z: 0, vx: 0, vz: 0, pvx: 0, pvz: 0, yaw: 0, spin: 0, spinRate: 0, age: 0, placed: false, fresh: false, gone: 0, seen: true, lift: 0, hitT: -9,
       surprised: 0, glint: 0, hits: 0, sil: false, hn, st: { speed: 0, surprised: 0, spin: 0 },
-      vis: SMALL_KIND[kind] && r0 < T.smallR ? clamp(T.smallR / r0, 1, T.smallMax) : 1,
+      vis: isPlayer ? T.visPlayer : kind === 'cat' ? T.visCat : isItem ? itemVis(bk) : SMALL_KIND[kind] && r0 < T.smallR ? clamp(T.smallR / r0, 1, T.smallMax) : 1,
     };
+    r.small = (isItem || !!SMALL_KIND[kind]) && r.vis > 1.05;
+    const bb = bk && bk.geo ? bk.geo.boundingBox : null;
+    if (isItem) r.ext = (bb ? Math.max(bb.max.x - bb.min.x, bb.max.z - bb.min.z, 0.02) : r.r * 2) * r.vis;
+    r.hop = HOP[isItem ? 'item' : kind] || null;
+    r.hh = (bb ? bb.max.y : r.h) / 2; r.hw = bb ? Math.max(bb.max.x - bb.min.x, bb.max.z - bb.min.z) / 2 : r.r;
+    r.hy = 0; r.hvy = 0; r.tAng = 0; r.tVel = 0; r.tax = 1; r.taz = 0; r.tumble = false; r.sq = 0; r.sqv = 0; r.lean = 0;
     r.yaw = isPlayer ? Math.PI / 2 : r.isCat ? Math.PI / 2 + (h1 - 0.5) * 1.6 : h1 * TAU;
     if (isItem) r.spinRate = (h1 < 0.5 ? -1 : 1) * T.itemSpin * (0.7 + 0.6 * h2);
     const sil = isPlayer || r.isCat || isItem, meshes = [];
@@ -1553,24 +1725,68 @@ export function createStage(canvas, opts = {}) {
     root.visible = false; bodyRoot.add(root);
     return r;
   }
-  const handItems = new Map();
-  function holdItem(r, id) {
-    if (r.handId === id) return;
-    if (r.handObj && r.handObj.parent) r.handObj.parent.remove(r.handObj);
-    r.handObj = null; r.handId = id;
-    if (!id || !r.hand) return;
-    let o = handItems.get(id);
-    if (!o) {
-      o = makeItem(id);
-      o.traverse((m) => { if (m.isMesh) { m.layers.enable(1); m.layers.enable(2); if (!m.material.transparent) m.renderOrder = 2; } });
-      o.position.set(T.handOff[0], T.handOff[1] - (o.userData.h ?? 0.06) / 2, T.handOff[2]);
-      handItems.set(id, o);
-    }
-    r.hand.add(o); r.handObj = o;
-  }
   function spinHit(r, v) { if (!r || r.faceVel) return; r.hits++; r.hitT = time; r.spinRate = r.spinRate * 0.4 + (hash01(r.hn * 7.31 + r.hits * 3.7) - 0.5) * 2 * Math.min(10, 3 + v * 2.4); }
+  function hopHit(r, v, dx, dz) {
+    if (!r || !r.hop || !r.placed || r.gone > 0) return;
+    const k = logK(v, T.hopV), hp = r.hop;
+    if (k <= 0) return;
+    const h = lerp(T.hopH[0], T.hopH[1], k) * hp.h;
+    r.hvy = Math.max(r.hvy, Math.sqrt(2 * T.hopGrav * h)); if (r.hy <= 0) r.hy = 1e-4;
+    let l = Math.hypot(dx, dz);
+    if (l < 1e-4) { const a = hash01(r.hn * 3.1 + r.hits) * TAU; dx = Math.cos(a); dz = Math.sin(a); l = 1; }
+    dx /= l; dz /= l;
+    const sp = lerp(T.hopSpin[0], T.hopSpin[1], k) * hp.t * (0.8 + 0.4 * hash01(r.hn + r.hits * 1.7));
+    if (!r.tumble || Math.abs(r.tAng) < 0.05) { r.tax = dz; r.taz = -dx; r.tVel = sp; }
+    else r.tVel += (Math.sign(dz * r.tax - dx * r.taz) || 1) * sp * 0.7;
+    r.tumble = true;
+  }
+  function stepHop(r, dt) {
+    if (r.hy > 0 || r.hvy > 0) {
+      r.hvy -= T.hopGrav * dt; r.hy += r.hvy * dt;
+      if (r.hy <= 0) {
+        r.hy = 0;
+        if (r.hvy < -T.hopLand) { r.hvy = -r.hvy * T.hopBounce; r.tVel *= T.hopRoll; landPuff(r); } else r.hvy = 0;
+      }
+    }
+    r.tAng += r.tVel * dt;
+    if (r.hy <= 0 && r.hvy <= 0) {
+      const step = r.hop.up ? TAU : Math.PI / 2, goal = Math.round(r.tAng / step) * step, e = 1 - Math.exp(-T.hopSettle * dt);
+      r.tVel *= 1 - e; r.tAng += (goal - r.tAng) * e;
+      if (Math.abs(r.tVel) < 0.05 && Math.abs(goal - r.tAng) < 0.003) {
+        r.tVel = 0; r.tAng = ((goal % TAU) + TAU) % TAU;
+        if (r.tAng < 1e-3 || TAU - r.tAng < 1e-3) { r.tAng = 0; r.tumble = false; }
+      }
+    }
+  }
+  function landPuff(r) {
+    const fy = house.floorY(r.x, r.z) + 0.02, n = r.small ? 1 : 2;
+    pReal = 1; for (let i = 0; i < n; i++) { const a = rnd() * TAU; emit(2, r.x + Math.cos(a) * r.r * 0.6, fy, r.z + Math.sin(a) * r.r * 0.6, Math.cos(a) * 0.35, 0.12, Math.sin(a) * 0.35, 0.4, 0.05, 0.12, 1, 0.97, 0.92, 0.22, 0, 0, 0, 2, 0, 0, 0, 1, 0); } pReal = 0;
+  }
+  const _qa = new THREE.Quaternion(), _qb = new THREE.Quaternion(), _ax = new THREE.Vector3(), _yAx = new THREE.Vector3(0, 1, 0), _zAx = new THREE.Vector3(0, 0, 1);
+  function placeTumble(r, lift, s) {
+    const sc = s * r.vis, c = Math.cos(r.tAng), sn = Math.sin(r.tAng);
+    _qa.setFromAxisAngle(_yAx, -(r.yaw + r.spin)); _qb.setFromAxisAngle(_ax.set(r.tax, 0, r.taz), r.tAng);
+    r.root.quaternion.multiplyQuaternions(_qb, _qa);
+    const he = (Math.abs(c) * r.hh + Math.abs(sn) * r.hw) * sc;
+    _v.set(0, r.hh * sc, 0).applyQuaternion(r.root.quaternion);
+    r.root.position.set(r.x - _v.x, r.y + r.lift + lift + r.hy + he - _v.y, r.z - _v.z);
+    r.root.scale.setScalar(sc);
+  }
+  function placePlayer(r, lift, s, sp, dt) {
+    r.lean = damp(r.lean, smooth(T.fastV[0], T.fastV[1], sp), 6, dt);
+    if (r.sq !== 0 || r.sqv !== 0) {
+      const w = TAU * T.squashHz, n = Math.ceil(dt / 0.008), h = dt / n;
+      for (let i = 0; i < n; i++) { r.sqv += (-w * w * r.sq - 2 * 0.3 * w * r.sqv) * h; r.sq += r.sqv * h; }
+      if (Math.abs(r.sq) < 2e-3 && Math.abs(r.sqv) < 0.03) { r.sq = 0; r.sqv = 0; }
+    }
+    const sc = s * r.vis, q = r.sq * T.squash, ln = r.lean;
+    _qa.setFromAxisAngle(_yAx, -(r.yaw + r.spin)); _qb.setFromAxisAngle(_zAx, -T.leanMax * ln);
+    r.root.quaternion.multiplyQuaternions(_qa, _qb);
+    r.root.position.set(r.x, r.y + r.lift + lift, r.z);
+    r.root.scale.set(sc * (1 + T.stretch * ln + 0.7 * q), sc * (1 - T.stretch * 0.6 * ln - q), sc * (1 - T.stretch * 0.3 * ln + 0.7 * q));
+  }
   function removeRec(r) {
-    holdItem(r, null); bodyRoot.remove(r.root);
+    bodyRoot.remove(r.root);
     if (r.inst >= 0) { batch.deleteInstance(r.inst); r.inst = -1; if (--batchLive <= 0) batch.visible = false; }
     if (playerRec === r) playerRec = null;
   }
@@ -1629,7 +1845,7 @@ export function createStage(canvas, opts = {}) {
       if (r.fresh) {
         r.fresh = false;
         const dv = Math.hypot(r.vx - r.pvx, r.vz - r.pvz);
-        if (dv > 0.3 && r.age > 0.06 && time - r.hitT > 0.15) spinHit(r, dv);
+        if (dv > 0.3 && r.age > 0.06 && time - r.hitT > 0.15) { spinHit(r, dv); hopHit(r, dv, r.vx - r.pvx, r.vz - r.pvz); }
       }
       if (r.faceVel) { if (sp > T.faceSpeed) r.yaw += angDiff(r.yaw, Math.atan2(r.vz, r.vx)) * (1 - Math.exp(-10 * dt)); }
       else { r.spin += r.spinRate * dt; r.spinRate *= Math.exp(-(sp < 0.08 ? 2.5 : r.isItem ? 0.18 : 0.5) * dt); }
@@ -1638,10 +1854,14 @@ export function createStage(canvas, opts = {}) {
       r.lift = damp(r.lift, sleeping ? 0 : house.lift(r.x, r.z), 7, dt);
       let lift = 0;
       if (r.isItem && r.age < T.itemLiftSec) { const k = r.age / T.itemLiftSec; lift = T.itemLift * (1 - k * k); }
-      const s = r.gone > 0 ? Math.max(0.001, 1 - r.gone * r.gone) : 1;
-      r.root.position.set(r.x, r.y + r.lift + lift, r.z);
-      r.root.rotation.y = -(r.yaw + r.spin);
-      r.root.scale.setScalar(s * r.vis);
+      let s = r.gone > 0 ? Math.max(0.001, 1 - r.gone * r.gone) : 1;
+      if (r.id === fly.id) {
+        const k = (time - throwT) / T.flySec;
+        if (k < 1) s *= Math.max(0.001, smooth(0.6, 0.95, k)); else fly.id = null;
+      }
+      if (r.tumble) { stepHop(r, dt); placeTumble(r, lift, s); }
+      else if (r.isPlayer) placePlayer(r, lift, s, sp, dt);
+      else { r.root.position.set(r.x, r.y + r.lift + lift, r.z); r.root.rotation.set(0, -(r.yaw + r.spin), 0); r.root.scale.setScalar(s * r.vis); }
       if (r.inst >= 0) { r.root.updateMatrix(); batch.setMatrixAt(r.inst, r.root.matrix); }
       if (r.isPlayer) {
         const p = f.player;
@@ -1649,18 +1869,18 @@ export function createStage(canvas, opts = {}) {
         const hold = f.aim && f.phase !== 'done' ? itemId(f.aim.item) : null;
         if (f.aim) { stAim.ang = Math.atan2(f.aim.dy, f.aim.dx) - r.yaw; stAim.power = f.aim.power; stP.aim = stAim; } else stP.aim = null;
         stP.move = sp > T.faceSpeed ? angDiff(r.yaw, Math.atan2(r.vz, r.vx)) : 0;
-        holdItem(r, hold);
         if (r.api) { if (r.api.setRando) r.api.setRando((!p || p.rando !== false) && hold !== 'rando'); if (r.api.anim) r.api.anim(worldT, dt, stP); }
         playerX = r.x; playerZ = r.z; playerSpeed = sp; playerRec = r;
       } else if (r.anim) { r.surprised = Math.max(0, r.surprised - dt / 1.4); r.st.speed = sp; r.st.surprised = r.surprised; r.st.spin = r.spin; r.anim(worldT, dt, r.st); }
-      if (r.gone === 0 && sp > 0.3 && lift === 0) {
+      if (r.gone === 0 && sp > 0.3 && sp < 8 && lift === 0 && r.hy <= 0) {
         r.glint += sp * dt;
         if (r.glint > T.glintStep) {
           r.glint = 0;
           emit(1, r.x - r.vx / sp * r.r * 0.7 + (rnd() - 0.5) * r.r, fy + 0.02, r.z - r.vz / sp * r.r * 0.7 + (rnd() - 0.5) * r.r, 0, 0.02, 0, 0.4 + rnd() * 0.25, 0.028 + rnd() * 0.03, 0.006, 2.2, 2.1, 1.8, 0.9, 1, rnd() * 3, 1.5, 0, 0, 0, 0, 1, 0);
         }
       }
-      blob(r.x - sunDir.x * 0.03, fy + r.lift + 0.004, r.z - sunDir.z * 0.03, r.r * (r.vis > 1 ? 1.75 : 1.4) + lift * 0.5, (r.vis > 1 ? 0.8 : 0.62) * s * (1 - lift * 1.5));
+      const up = lift + r.hy;
+      blob(r.x - sunDir.x * 0.03, fy + r.lift + 0.004, r.z - sunDir.z * 0.03, r.r * (r.small ? 1.75 : 1.4 * r.vis) + up * 0.5, (r.small ? 0.8 : 0.62) * s * Math.max(0.15, 1 - up * 1.5));
       if (r.twins.length) { const on = r.gone === 0 && hiddenBehind(r); if (on !== r.sil) { r.sil = on; for (let k = 0; k < r.twins.length; k++) r.twins[k].visible = on; } }
     }
   }
@@ -1670,7 +1890,7 @@ export function createStage(canvas, opts = {}) {
     const obj = MODELS.createChild();
     obj.traverse((m) => { if (m.isMesh) { m.material = ghostMat; m.castShadow = false; m.receiveShadow = false; m.renderOrder = 3; } });
     ghost = { root: new THREE.Group(), obj, api: obj.userData.api || null, yaw: Math.PI / 2, y: 0 };
-    ghost.root.visible = false; ghost.root.add(obj); scene.add(ghost.root);
+    ghost.root.visible = false; ghost.root.scale.setScalar(T.visPlayer); ghost.root.add(obj); scene.add(ghost.root);
   }
   function updateGhost(f, dt) {
     const g = f.ghost;
@@ -1686,13 +1906,14 @@ export function createStage(canvas, opts = {}) {
   }
   const TMAX = 3000;
   const trailGeo = new THREE.BufferGeometry(), trailPos = new THREE.BufferAttribute(new Float32Array(TMAX * 6), 3);
-  const trailLen = new THREE.BufferAttribute(new Float32Array(TMAX * 2), 1);
-  trailPos.setUsage(THREE.DynamicDrawUsage); trailLen.setUsage(THREE.DynamicDrawUsage); trailGeo.setAttribute('position', trailPos); trailGeo.setAttribute('aLen', trailLen);
+  const trailLen = new THREE.BufferAttribute(new Float32Array(TMAX * 2), 1), trailOff = new THREE.BufferAttribute(new Float32Array(TMAX * 4), 2);
+  trailPos.setUsage(THREE.DynamicDrawUsage); trailLen.setUsage(THREE.DynamicDrawUsage); trailOff.setUsage(THREE.DynamicDrawUsage);
+  trailGeo.setAttribute('position', trailPos); trailGeo.setAttribute('aLen', trailLen); trailGeo.setAttribute('aOff', trailOff);
   { const sd = new Float32Array(TMAX * 2), ix = new Uint16Array((TMAX - 1) * 6);
     for (let i = 0; i < TMAX; i++) { sd[i * 2] = -1; sd[i * 2 + 1] = 1; }
     for (let i = 0; i < TMAX - 1; i++) ix.set([i * 2, i * 2 + 1, i * 2 + 2, i * 2 + 1, i * 2 + 3, i * 2 + 2], i * 6);
     trailGeo.setAttribute('aSide', new THREE.BufferAttribute(sd, 1)); trailGeo.setIndex(new THREE.BufferAttribute(ix, 1)); }
-  const trailU = { uCol: { value: lin(PAL.trail).lerp(new THREE.Vector3(1, 1, 1), T.trailWhite).multiplyScalar(T.trailGlow) }, uPar: { value: new THREE.Vector4(T.trailOpacity, 0, T.trailFade, T.trailMin) } };
+  const trailU = { uCol: { value: lin(PAL.trail).lerp(new THREE.Vector3(1, 1, 1), T.trailWhite).multiplyScalar(T.trailGlow) }, uPar: { value: new THREE.Vector4(T.trailOpacity, 0, T.trailFade, T.trailMin) }, uBoost: { value: new THREE.Vector2(0, T.trailBoostLen) } };
   const trailMesh = new THREE.Mesh(trailGeo, new THREE.ShaderMaterial({
     ...premul, side: THREE.DoubleSide, uniforms: trailU, vertexShader: TRAIL_VS, fragmentShader: TRAIL_FS,
     stencilWrite: true, stencilRef: 2, stencilFuncMask: 2, stencilWriteMask: 2, stencilFunc: THREE.NotEqualStencilFunc, stencilZPass: THREE.ReplaceStencilOp,
@@ -1711,12 +1932,14 @@ export function createStage(canvas, opts = {}) {
         const j = Math.min(tr.n - 1, i * stride), j0 = Math.min(tr.n - 1, Math.max(0, i - 1) * stride), j1 = Math.min(tr.n - 1, (i + 1) * stride);
         let dx = p[j1 * 2] - p[j0 * 2], dz = p[j1 * 2 + 1] - p[j0 * 2 + 1];
         const l = Math.hypot(dx, dz); if (l > 1e-6) { dx /= l; dz /= l; } else { dx = 0; dz = 0; }
-        const x = p[j * 2], z = p[j * 2 + 1], y = house.floorY(x, z) + house.lift(x, z) + 0.006, o = i * 6;
+        const x = p[j * 2], z = p[j * 2 + 1], y = house.floorY(x, z) + house.lift(x, z) + 0.006, o = i * 6, of = trailOff.array, q = i * 4;
         a[o] = x - dz * w; a[o + 1] = y; a[o + 2] = z + dx * w; a[o + 3] = x + dz * w; a[o + 4] = y; a[o + 5] = z - dx * w;
+        of[q] = -dz * w; of[q + 1] = dx * w; of[q + 2] = dz * w; of[q + 3] = -dx * w;
         ln[i * 2] = ln[i * 2 + 1] = i ? ln[i * 2 - 1] + Math.hypot(x - p[j0 * 2], z - p[j0 * 2 + 1]) : 0;
       }
-      trailPos.needsUpdate = true; trailLen.needsUpdate = true;
+      trailPos.needsUpdate = true; trailLen.needsUpdate = true; trailOff.needsUpdate = true;
     }
+    trailU.uBoost.value.x = T.trailBoost * smooth(T.fastV[0], T.fastV[1], playerSpeed);
     trailN = n; trailGeo.setDrawRange(0, (n - 1) * 6); trailMesh.visible = true;
     trailU.uPar.value.y = ln[n * 2 - 1];
   }
@@ -1726,145 +1949,275 @@ export function createStage(canvas, opts = {}) {
   const dotMat = new THREE.ShaderMaterial({ ...ov, side: THREE.DoubleSide, uniforms: { uCol: { value: new THREE.Vector3() }, uSize: { value: new THREE.Vector2(T.dotR, 0.01) } }, vertexShader: DOT_VS, fragmentShader: DOT_FS });
   const dotMesh = new THREE.Mesh(dotGeo, dotMat); dotMesh.frustumCulled = false; dotMesh.visible = false; overlay.add(dotMesh);
   const arrowGeo = new THREE.BufferGeometry(); arrowGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array([0, 0, -1, 0, 0, 1, 1, 0, 1, 0, 0, -1, 1, 0, 1, 1, 0, -1]), 3));
-  const arrowMat = new THREE.ShaderMaterial({ ...ov, side: THREE.DoubleSide, uniforms: { uA: { value: new THREE.Vector4() }, uB: { value: new THREE.Vector4() }, uCol: { value: new THREE.Vector3() }, uAlpha: { value: 1 } }, vertexShader: ARROW_VS, fragmentShader: ARROW_FS });
+  const arrowMat = new THREE.ShaderMaterial({ ...ov, side: THREE.DoubleSide, uniforms: { uA: { value: new THREE.Vector4() }, uB: { value: new THREE.Vector4() }, uCol: { value: new THREE.Vector3(...srgb(T.flyCol)) }, uRim: { value: new THREE.Vector3(...srgb(T.flyRim)) }, uAlpha: { value: 1 }, uTime: { value: 0 } }, vertexShader: ARROW_VS, fragmentShader: ARROW_FS });
   const arrowMesh = new THREE.Mesh(arrowGeo, arrowMat); arrowMesh.frustumCulled = false; arrowMesh.visible = false; arrowMesh.renderOrder = 1; overlay.add(arrowMesh);
+  const bandMat = new THREE.ShaderMaterial({ ...ov, side: THREE.DoubleSide, uniforms: { uA: { value: new THREE.Vector4() }, uB: { value: new THREE.Vector4() }, uC: { value: new THREE.Vector4() }, uCol: { value: new THREE.Vector3(...srgb(PAL.ink)) }, uSlack: { value: new THREE.Vector3(...srgb(PAL.fabricGrey)) } }, vertexShader: BAND_VS, fragmentShader: BAND_FS });
+  const bandMesh = new THREE.Mesh(arrowGeo, bandMat); bandMesh.frustumCulled = false; bandMesh.visible = false; bandMesh.renderOrder = 0.5; overlay.add(bandMesh);
   const MASK = 128;
   let rtMask = null, masksDirty = true;
   const tipGeo = new THREE.BufferGeometry(); tipGeo.setAttribute('position', new THREE.BufferAttribute(quadXZ, 3));
   const tipMat = new THREE.ShaderMaterial({ ...ov, side: THREE.DoubleSide, uniforms: { uMap: { value: null }, uA: { value: new THREE.Vector4() }, uB: { value: new THREE.Vector4(T.tipSize, 0, 0, ITEM_IDS.length) }, uAlpha: { value: 1 }, uTexel: { value: new THREE.Vector2(1 / (MASK * ITEM_IDS.length), 1 / MASK) } }, vertexShader: TIP_VS, fragmentShader: TIP_FS });
   const tipMesh = new THREE.Mesh(tipGeo, tipMat); tipMesh.frustumCulled = false; tipMesh.visible = false; tipMesh.renderOrder = 2; overlay.add(tipMesh);
   const SMAX = 40;
-  const glyphCanvas = document.createElement('canvas'); glyphCanvas.width = 1024; glyphCanvas.height = 256;
+  const glyphCanvas = document.createElement('canvas'); glyphCanvas.width = 2048; glyphCanvas.height = 1024;
   const glyphTex = new THREE.CanvasTexture(glyphCanvas); glyphTex.premultiplyAlpha = true; glyphTex.generateMipmaps = true; glyphTex.minFilter = THREE.LinearMipmapLinearFilter;
   let G = drawGlyphs(glyphCanvas);
   const sprGeo = new THREE.InstancedBufferGeometry(); sprGeo.setAttribute('position', new THREE.BufferAttribute(quadXY, 3));
-  const sRect = inst(sprGeo, 'iRect', SMAX, 4), sUv = inst(sprGeo, 'iUv', SMAX, 4), sCol = inst(sprGeo, 'iCol', SMAX, 4), sMode = inst(sprGeo, 'iMode', SMAX, 1);
+  const sRect = inst(sprGeo, 'iRect', SMAX, 4), sUv = inst(sprGeo, 'iUv', SMAX, 4), sCol = inst(sprGeo, 'iCol', SMAX, 4), sRot = inst(sprGeo, 'iRot', SMAX, 1);
   const sprMat = new THREE.ShaderMaterial({ ...ov, ...premul, side: THREE.DoubleSide, uniforms: { uMap: { value: glyphTex }, uView: { value: new THREE.Vector2(1, 1) } }, vertexShader: SPR_VS, fragmentShader: SPR_FS });
   const sprMesh = new THREE.Mesh(sprGeo, sprMat); sprMesh.frustumCulled = false; sprMesh.renderOrder = 3; overlay.add(sprMesh);
   let sprN = 0;
-  function spr(mode, cx, cy, w, h, u0, v0, u1, v1, r, g, b, a) {
+  function spr(cx, cy, w, h, u0, v0, u1, v1, r, g, b, a, rot = 0) {
     if (sprN >= SMAX) return;
     const o = sprN * 4;
     sRect.array[o] = cx; sRect.array[o + 1] = cy; sRect.array[o + 2] = w; sRect.array[o + 3] = h;
     sUv.array[o] = u0; sUv.array[o + 1] = v0; sUv.array[o + 2] = u1; sUv.array[o + 3] = v1;
-    sCol.array[o] = r; sCol.array[o + 1] = g; sCol.array[o + 2] = b; sCol.array[o + 3] = a; sMode.array[sprN++] = mode;
+    sCol.array[o] = r; sCol.array[o + 1] = g; sCol.array[o + 2] = b; sCol.array[o + 3] = a; sRot.array[sprN] = rot; sprN++;
   }
-  function glyph(key, x, cy, scale, r, g, b, a) {
-    const q = G[key]; if (!q) return 0;
-    spr(0, x - q.pad * scale + q.w * scale / 2, cy, q.w * scale, q.h * scale, q.u0, q.v0, q.u1, q.v1, r, g, b, a);
-    return q.adv * scale;
+  function glyphRow(keys, cx, cy, px, a, rot) {
+    let tot = 0; for (const k of keys) { const q = G[k]; if (q) tot += q.adv * px / q.h; }
+    let x = -tot / 2; const c = Math.cos(rot), sn = Math.sin(rot);
+    for (const k of keys) { const q = G[k]; if (!q) continue; const w = q.adv * px / q.h, m = x + w / 2; glyph(k, cx + c * m, cy + sn * m, px, a, rot); x += w; }
   }
-  const cBlue = srgb(PAL.aim), cLow = srgb(PAL.yellow), cMid = srgb(PAL.sun), cHigh = srgb(PAL.red), cInk = srgb(PAL.ink), cMuted = srgb(PAL.inkMuted), cPaper = srgb(PAL.paperUi);
-  const pc = [0, 0, 0];
-  function powerColor(p) {
-    const a = p < 0.5 ? cLow : cMid, b = p < 0.5 ? cMid : cHigh, k = p < 0.5 ? p * 2 : (p - 0.5) * 2;
-    pc[0] = a[0] + (b[0] - a[0]) * k; pc[1] = a[1] + (b[1] - a[1]) * k; pc[2] = a[2] + (b[2] - a[2]) * k;
+  function glyph(key, cx, cy, px, a, rot = 0) {
+    const q = G[key]; if (!q || a <= 0.004) return 0;
+    const sc = px / q.h; spr(cx, cy, q.w * sc, q.h * sc, q.u0, q.v0, q.u1, q.v1, 1, 1, 1, a, rot);
+    return q.adv * sc;
   }
+  const cBlue = srgb(PAL.aim);
   const scr = { x: 0, y: 0 };
   function toScreen(x, y, z) { _v.set(x, y, z).project(cam); scr.x = (_v.x * 0.5 + 0.5) * cssW; scr.y = (0.5 - _v.y * 0.5) * cssH; }
   const bangs = [{ id: null, t0: -9 }, { id: null, t0: -9 }, { id: null, t0: -9 }, { id: null, t0: -9 }];
   let stuckT0 = -99;
-  const lab = { x: 0, y: 0, k: -1, on: false }, labOb = new Float32Array(160);
+  const sling = { on: false, t: 9, snap: false, inv: false, dx: 0, dz: 1, len: 0, st: 0, slack: 0, item: 0, arrow: false, td: 0, sd: 1, tx: 0, tz: 0, ty: 0, ts: 0, aSt: 0, aLen: 0, aW: 0, aHint: 0 };
+  const fly = { id: null };
+  let throwT = -9;
+  function drawBand(x, z, fy, bx, bz, st, len, slack, alpha) {
+    bandMesh.visible = alpha > 0.01 && len > 0.01;
+    if (!bandMesh.visible) return;
+    const hw = Math.max(T.bandW, T.bandMinPx / pxPerM), base = Math.max(T.bandBase, 7 / pxPerM) * (1 - 0.35 * slack) * clamp(len / 0.25, 0.35, 1);
+    bandMat.uniforms.uA.value.set(x, z, bx, bz);
+    bandMat.uniforms.uB.value.set(st, st + len, base, fy + 0.03);
+    bandMat.uniforms.uC.value.set(hw * (1 - 0.3 * slack), slack, alpha, time);
+  }
+  function drawTip(x, z, y, size, ox, oz, alpha) {
+    tipMesh.visible = !!rtMask && alpha > 0.01;
+    tipMat.uniforms.uA.value.set(x, z, ox, oz); tipMat.uniforms.uB.value.set(size, y, sling.item, ITEM_IDS.length);
+    tipMat.uniforms.uAlpha.value = alpha;
+  }
+  function drawFly(x, z, fy, dx, dz, st, len, w, hint, alpha) {
+    arrowMesh.visible = alpha > 0.01;
+    if (!arrowMesh.visible) return;
+    arrowMat.uniforms.uA.value.set(x + dx * st, z + dz * st, dx, dz); arrowMat.uniforms.uB.value.set(len, w, fy + 0.03, hint);
+    arrowMat.uniforms.uAlpha.value = alpha; arrowMat.uniforms.uTime.value = time;
+  }
+  function reachFit(ux, uz, fy, reach, pad) {
+    toScreen(playerX, fy, playerZ); const ax = scr.x, ay = scr.y;
+    toScreen(playerX + ux * reach, fy, playerZ + uz * reach);
+    const ex = scr.x - ax, ey = scr.y - ay;
+    let t = 1;
+    if (ex > 1e-3) t = Math.min(t, (cssW - pad - ax) / ex); else if (ex < -1e-3) t = Math.min(t, (pad - ax) / ex);
+    if (ey > 1e-3) t = Math.min(t, (cssH - insets.bottom - pad - ay) / ey); else if (ey < -1e-3) t = Math.min(t, (insets.top + pad - ay) / ey);
+    return clamp(t, 0, 1);
+  }
+  function weakRing(fy, pr) {
+    const rM = Math.max(T.dotR, T.dotMinPx / pxPerM);
+    dPos.array[0] = playerX; dPos.array[1] = fy + 0.02; dPos.array[2] = playerZ; dPos.array[3] = pr * T.weakRing / (1.28 * rM); dA.array[0] = 6 + 0.85;
+    dotMat.uniforms.uCol.value.set(cBlue[0], cBlue[1], cBlue[2]); dotMat.uniforms.uSize.value.set(rM, cssW / (pxPerM * bufW));
+    return 1;
+  }
   function updateOverlay(f, rdt) {
     sprN = 0;
-    const a = f.aim, on = !!(a && playerRec && a.path && a.n > 1 && f.phase !== 'done');
-    dotMesh.visible = arrowMesh.visible = tipMesh.visible = on;
-    if (!on) { lab.on = false; lab.k = -1; }
+    const a = f.aim, aiming = !!(a && playerRec && f.phase !== 'done'), on = aiming && !!a.path && a.n > 1;
+    const fy = playerRec ? house.floorY(playerX, playerZ) + playerRec.lift : 0, pr = playerRec ? playerRec.r * playerRec.vis : 0.24;
+    const s = sling, ts = Math.max(T.tipSize, T.tipMinPx / pxPerM);
+    let dots = 0;
+    if (aiming) {
+      const pw = clamp(a.power, 0, 1), pad = ts * pxPerM * 0.6 + 4;
+      s.on = true; s.t = 0; s.snap = false; s.inv = !!a.inv; s.dx = a.dx; s.dz = a.dy; s.ts = ts; s.slack = damp(s.slack, on ? 0 : 1, 22, rdt);
+      s.item = typeof a.item === 'number' ? a.item : Math.max(0, ITEM_IDS.indexOf(a.item));
+      const show = 1 - s.slack;
+      if (s.inv) {
+        s.st = pr * 0.62; s.sd = -1;
+        const want = Math.max(lerp(T.bandLen[0], T.bandLen[1], pw), lerp(T.bandMinLenPx[0], T.bandMinLenPx[1], pw) / pxPerM) * (on ? 1 : T.bandSlack);
+        const reach = s.st + want + ts * 0.42, t = reachFit(-a.dx, -a.dy, fy, reach, pad);
+        s.td = t < 1 ? Math.max(reach * t, pr * 0.4) : reach;
+        s.len = Math.max(0, s.td - s.st - ts * 0.42);
+        drawBand(playerX, playerZ, fy, -a.dx, -a.dy, s.st, s.len, s.slack, 1);
+      } else {
+        const reach = pr + T.handGap + ts * 0.38, t = reachFit(a.dx, a.dy, fy, reach, pad);
+        s.st = 0; s.len = 0; s.sd = 1; s.td = t < 1 ? Math.max(reach * t, pr * 0.4) : reach;
+        bandMesh.visible = false;
+      }
+      s.tx = playerX + a.dx * s.sd * s.td; s.tz = playerZ + a.dy * s.sd * s.td; s.ty = fy + 0.04;
+      drawTip(s.tx, s.tz, s.ty, ts, a.dx, a.dy, show);
+      if (on) {
+        const st = s.inv ? pr + T.flyGap : s.td + ts * 0.4, hint = T.flyHint;
+        const w = Math.max(lerp(T.flyW[0], T.flyW[1], pw), T.flyMinPx / pxPerM);
+        let len = Math.max(lerp(T.flyLen[0], T.flyLen[1], pw), lerp(T.flyMinLenPx[0], T.flyMinLenPx[1], pw) / pxPerM);
+        const reach = st + len + hint, t = reachFit(a.dx, a.dy, fy, reach, 8);
+        if (t < 1) len = Math.max(T.flyLen[0] * 0.5, reach * t - st - hint);
+        s.aSt = st; s.aLen = len; s.aW = w; s.aHint = hint; s.arrow = true;
+        drawFly(playerX, playerZ, fy, a.dx, a.dy, st, len, w, hint, show);
+      } else {
+        arrowMesh.visible = false; s.arrow = false;
+        dots = weakRing(fy, pr);
+      }
+    } else {
+      if (s.on) { s.on = false; s.t = 0; s.snap = time - throwT < 0.2; if (s.snap) s.slack = 0; }
+      s.t += rdt;
+      if (!playerRec) { bandMesh.visible = false; tipMesh.visible = false; }
+      else if (s.snap) {
+        const k = clamp((time - throwT) / T.flySec, 0, 1), q = Math.min(1, k / 0.7), e = q * (0.5 + 0.5 * q), r = fly.id != null ? recById.get(fly.id) : null, a0 = Math.atan2(s.dz, s.dx);
+        let ex, ez, ey, es, da = 0;
+        if (r && r.placed) { ex = r.x; ez = r.z; ey = r.root.position.y + 0.02; es = (r.ext || 0.2) * 1.3; da = angDiff(a0, r.yaw + r.spin); }
+        else { ex = playerX + s.dx * (pr + 0.2); ez = playerZ + s.dz * (pr + 0.2); ey = fy + 0.3; es = s.ts * 0.6; }
+        const x = lerp(s.tx, ex, e), z = lerp(s.tz, ez, e), sz = lerp(s.ts, es, e), ang = a0 + da * e;
+        drawTip(x, z, lerp(s.ty, ey, e), sz, Math.cos(ang), Math.sin(ang), 1 - smooth(0.7, 1, k));
+        if (s.inv) {
+          const kb = clamp(s.t / T.snapSec, 0, 1), along = (x - playerX) * -s.dx + (z - playerZ) * -s.dz;
+          drawBand(playerX, playerZ, fy, -s.dx, -s.dz, s.st, Math.min(s.len, along - s.st - sz * 0.42), 0, 1 - kb * kb);
+        } else bandMesh.visible = false;
+      } else {
+        const k = clamp(s.t / T.slackSec, 0, 1);
+        if (k < 1) {
+          const len = s.len * (1 - 0.3 * k), td = s.inv ? s.st + len + s.ts * 0.42 : s.td;
+          if (s.inv) drawBand(playerX, playerZ, fy, -s.dx, -s.dz, s.st, len, Math.max(s.slack, k), 1 - k); else bandMesh.visible = false;
+          drawTip(playerX + s.dx * s.sd * td, playerZ + s.dz * s.sd * td, s.ty, s.ts, s.dx, s.dz, (1 - k) * (1 - s.slack));
+        } else { bandMesh.visible = false; tipMesh.visible = false; s.slack = 0; }
+      }
+      const ka = clamp(s.t / T.flyFadeSec, 0, 1);
+      if (s.arrow && ka < 1 && playerRec) drawFly(playerX, playerZ, fy, s.dx, s.dz, s.aSt, s.aLen, s.aW, s.aHint, (1 - ka) * (1 - ka));
+      else { s.arrow = false; arrowMesh.visible = false; }
+    }
     if (on) {
-      const pw = clamp(a.power, 0, 1), path = a.path, n = a.n, fy = house.floorY(playerX, playerZ);
+      const path = a.path, n = a.n;
       let total = 0;
       for (let i = 1; i < n; i++) total += Math.hypot(path[i * 2] - path[i * 2 - 2], path[i * 2 + 1] - path[i * 2 - 1]);
-      const rM = Math.max(T.dotR, T.dotMinPx / pxPerM) * (0.92 + 0.22 * pw);
-      const gap = Math.max(T.dotGap, T.dotMinGapPx / pxPerM, total / (T.dotMax - 2));
-      let s = T.dotStart + (time * T.dotFlow) % gap, acc = 0, c = 0;
-      const cap = T.dotMax - 10;
+      const rM = Math.max(T.dotR, T.dotMinPx / pxPerM), hole = s.inv ? ts * 0.4 + rM : 0;
+      const gap = Math.max(T.dotGap, T.dotMinGapPx / pxPerM, total / (T.dotMax - 2)), s0 = pr + 0.08;
+      let u = s0 + (time * T.dotFlow) % gap, acc = 0, c = 0;
+      const cap = T.dotMax - 2;
       for (let i = 1; i < n && c < cap; i++) {
         const x0 = path[i * 2 - 2], z0 = path[i * 2 - 1], x1 = path[i * 2], z1 = path[i * 2 + 1], l = Math.hypot(x1 - x0, z1 - z0);
-        while (s <= acc + l && c < cap) {
-          const k = l > 1e-6 ? (s - acc) / l : 0, x = x0 + (x1 - x0) * k, z = z0 + (z1 - z0) * k, u = total > 0 ? s / total : 0;
-          dPos.array[c * 4] = x; dPos.array[c * 4 + 1] = house.floorY(x, z) + 0.02; dPos.array[c * 4 + 2] = z; dPos.array[c * 4 + 3] = 1.06 - 0.36 * u;
-          dA.array[c] = (1 - 0.34 * u) * smooth(T.dotStart, T.dotStart + gap * 0.9, s) * smooth(total, total - gap * 0.45, s);
-          c++; s += gap;
+        while (u <= acc + l && c < cap) {
+          const k = l > 1e-6 ? (u - acc) / l : 0, x = x0 + (x1 - x0) * k, z = z0 + (z1 - z0) * k, v = total > 0 ? u / total : 0;
+          if (hole > 0 && Math.hypot(x - s.tx, z - s.tz) < hole) { u += gap; continue; }
+          dPos.array[c * 4] = x; dPos.array[c * 4 + 1] = house.floorY(x, z) + 0.02; dPos.array[c * 4 + 2] = z; dPos.array[c * 4 + 3] = 1.06 - 0.3 * v;
+          dA.array[c] = T.dotAlpha * (1 - 0.3 * v) * smooth(s0, s0 + gap * 0.9, u) * smooth(total, total - gap * 0.45, u);
+          c++; u += gap;
         }
         acc += l;
       }
-      let lx = 1e9, lz = 1e9; acc = 0;
-      for (let i = 1; i < n - 1 && c < T.dotMax - 1; i++) {
-        const ux = path[i * 2] - path[i * 2 - 2], uz = path[i * 2 + 1] - path[i * 2 - 1], vx = path[i * 2 + 2] - path[i * 2], vz = path[i * 2 + 3] - path[i * 2 + 1], lu = Math.hypot(ux, uz), lv = Math.hypot(vx, vz);
-        acc += lu;
-        if (lu < 0.003 || lv < 0.003 || (ux * vx + uz * vz) / (lu * lv) > 0.94 || acc < T.dotStart || Math.hypot(path[i * 2] - lx, path[i * 2 + 1] - lz) < 0.2) continue;
-        lx = path[i * 2]; lz = path[i * 2 + 1];
-        dPos.array[c * 4] = lx; dPos.array[c * 4 + 1] = house.floorY(lx, lz) + 0.022; dPos.array[c * 4 + 2] = lz; dPos.array[c * 4 + 3] = 1.3; dA.array[c++] = 4 + (1 - 0.25 * acc / total);
-      }
-      if (total > T.dotStart + gap) { const ex = path[n * 2 - 2], ez = path[n * 2 - 1]; dPos.array[c * 4] = ex; dPos.array[c * 4 + 1] = house.floorY(ex, ez) + 0.024; dPos.array[c * 4 + 2] = ez; dPos.array[c * 4 + 3] = 1.45; dA.array[c++] = 2 + 0.92; }
-      dotGeo.instanceCount = c; dPos.needsUpdate = true; dA.needsUpdate = true;
+      if (total > s0 + gap) { const ex = path[n * 2 - 2], ez = path[n * 2 - 1]; dPos.array[c * 4] = ex; dPos.array[c * 4 + 1] = house.floorY(ex, ez) + 0.024; dPos.array[c * 4 + 2] = ez; dPos.array[c * 4 + 3] = T.dotEnd; dA.array[c++] = 2 + 0.92 * T.dotAlpha; }
       dotMat.uniforms.uCol.value.set(cBlue[0], cBlue[1], cBlue[2]); dotMat.uniforms.uSize.value.set(rM, cssW / (pxPerM * bufW));
-      powerColor(pw);
-      const len = lerp(T.arrowLen[0], T.arrowLen[1], pw), wd = Math.max(lerp(T.arrowW[0], T.arrowW[1], pw), 2.6 / pxPerM), st = playerRec.r + 0.1;
-      arrowMat.uniforms.uA.value.set(playerX + a.dx * st, playerZ + a.dy * st, a.dx, a.dy); arrowMat.uniforms.uB.value.set(len, wd, fy + 0.03, 0);
-      arrowMat.uniforms.uCol.value.set(pc[0], pc[1], pc[2]);
-      const ts = Math.max(T.tipSize, 24 / pxPerM), td = st + len + ts * 0.5;
-      const ii = typeof a.item === 'number' ? a.item : Math.max(0, ITEM_IDS.indexOf(a.item));
-      tipMat.uniforms.uA.value.set(playerX + a.dx * td, playerZ + a.dy * td, a.dx, a.dy); tipMat.uniforms.uB.value.set(ts, fy + 0.04, ii, ITEM_IDS.length);
-      tipMesh.visible = !!rtMask;
-      const v = Math.min(9999, Math.round(Math.max(0, a.dv || 0) * 100)), sc = T.labelPx / 64, su = T.labelPx * 0.74 / 44;
-      const d2 = Math.floor(v / 1000), d1 = Math.floor(v / 100) % 10, c1 = Math.floor(v / 10) % 10, c2 = v % 10;
-      const tw = (G['+'].adv + G[d1].adv + G['.'].adv + G[c1].adv + G[c2].adv + (d2 ? G[d2].adv : 0)) * sc + 5 + G.u.adv * su;
-      const bw = tw + 26, bh = T.labelPx + 15, hw = bw / 2 + T.labelGap, hh = bh / 2 + T.labelGap;
-      toScreen(playerX, fy + 0.3, playerZ); const px = scr.x, py = scr.y;
-      let no = 0;
-      const stp = Math.max(1, Math.floor(n / 44));
-      for (let i = 0; i < n && no < 60; i += stp) { toScreen(path[i * 2], fy, path[i * 2 + 1]); labOb[no * 2] = scr.x; labOb[no * 2 + 1] = scr.y; no++; }
-      for (let i = 1; i <= 8; i++) { const d = st + (len + ts) * i / 8; toScreen(playerX + a.dx * d, fy, playerZ + a.dy * d); labOb[no * 2] = scr.x; labOb[no * 2 + 1] = scr.y; no++; }
-      const xa = bw / 2 + 5, xb = cssW - bw / 2 - 5, ya = insets.top + bh / 2 + 7, yb = Math.max(ya, cssH - insets.bottom - bh / 2 - 7);
-      let bk = 0, bs = -1e9, bx = px, by = py;
-      for (let k = 0; k < 12; k++) {
-        const th = k * TAU / 12, wx = px + Math.cos(th) * (bw / 2 + 30), wy = py + Math.sin(th) * (bh / 2 + 36), kx = clamp(wx, xa, xb), ky = clamp(wy, ya, yb);
-        let dm = Math.hypot(Math.max(Math.abs(px - kx) - bw / 2, 0), Math.max(Math.abs(py - ky) - bh / 2, 0)) - 12;
-        for (let i = 0; i < no; i++) { const d = Math.hypot(Math.max(Math.abs(labOb[i * 2] - kx) - hw, 0), Math.max(Math.abs(labOb[i * 2 + 1] - ky) - hh, 0)); if (d < dm) dm = d; }
-        const score = Math.min(dm, 22) - Math.hypot(kx - wx, ky - wy) * 0.5 + (Math.sin(th) < -0.3 ? 2 : 0) + (k === lab.k ? 9 : 0);
-        if (score > bs) { bs = score; bk = k; bx = kx; by = ky; }
-      }
-      if (!lab.on) { lab.x = bx; lab.y = by; lab.on = true; } else { const e = 1 - Math.exp(-T.labelFollow * rdt); lab.x += (bx - lab.x) * e; lab.y += (by - lab.y) * e; }
-      lab.k = bk;
-      const cx = lab.x, cy = lab.y;
-      spr(1, cx, cy, bw + 14, bh + 14, pc[0], pc[1], pc[2], 1, cPaper[0], cPaper[1], cPaper[2], 0.96);
-      let x = cx - tw / 2;
-      x += glyph('+', x, cy, sc, cInk[0], cInk[1], cInk[2], 1);
-      if (d2) x += glyph(d2, x, cy, sc, cInk[0], cInk[1], cInk[2], 1);
-      x += glyph(d1, x, cy, sc, cInk[0], cInk[1], cInk[2], 1); x += glyph('.', x, cy, sc, cInk[0], cInk[1], cInk[2], 1);
-      x += glyph(c1, x, cy, sc, cInk[0], cInk[1], cInk[2], 1); x += glyph(c2, x, cy, sc, cInk[0], cInk[1], cInk[2], 1);
-      glyph('u', x + 5, cy + 0.5, su, cMuted[0], cMuted[1], cMuted[2], 1);
+      dots = c;
     }
+    dotMesh.visible = dots > 0; dotGeo.instanceCount = dots;
+    if (dots) { dPos.needsUpdate = true; dA.needsUpdate = true; }
     for (let i = 0; i < bangs.length; i++) {
       const b = bangs[i], age = time - b.t0; if (b.id === null || age < 0 || age > 1.25) continue;
       const r = recById.get(b.id); if (!r || !r.placed) continue;
-      const q = G['!'], pop = age < 0.28 ? backOut(age / 0.28) : 1, hop = Math.sin(Math.min(1, age / 0.42) * Math.PI) * 9, al = 1 - smooth(0.95, 1.25, age), sc = T.bangPx / q.h * pop;
-      toScreen(r.x, r.y + r.h + 0.1, r.z);
-      spr(0, scr.x + 1, scr.y - T.bangPx * 0.42 - hop, q.w * sc, q.h * sc, q.u0, q.v0, q.u1, q.v1, 1, 1, 1, al);
+      const q = G['!'], pop = age < 0.28 ? backOut(age / 0.28) : 1, hop = Math.sin(Math.min(1, age / 0.42) * Math.PI) * 9, al = 1 - smooth(0.95, 1.25, age), bp = T.bangPx * clamp(pxPerM / 56, 1, 1.35), sc = bp / q.h * pop;
+      toScreen(r.x, r.y + r.h * r.vis + 0.1, r.z);
+      spr(scr.x + 1, scr.y - bp * 0.42 - hop, q.w * sc, q.h * sc, q.u0, q.v0, q.u1, q.v1, 1, 1, 1, al);
     }
     if (playerRec && time - stuckT0 >= 0 && time - stuckT0 < 3.2) {
       const age = time - stuckT0, q = G['…'], pop = age < 0.3 ? backOut(age / 0.3) : 1, al = 1 - smooth(2.7, 3.2, age), sc = T.bangPx * 0.9 / q.h * pop;
-      toScreen(playerX, playerRec.y + playerRec.h + 0.1, playerZ);
-      spr(0, scr.x, scr.y - T.bangPx * 0.4 + Math.sin(age * 3) * 2, q.w * sc, q.h * sc, q.u0, q.v0, q.u1, q.v1, 1, 1, 1, al);
+      toScreen(playerX, playerRec.y + playerRec.h * playerRec.vis + 0.1, playerZ);
+      spr(scr.x, scr.y - T.bangPx * 0.4 + Math.sin(age * 3) * 2, q.w * sc, q.h * sc, q.u0, q.v0, q.u1, q.v1, 1, 1, 1, al);
+    }
+    const wsc = clamp(cssW / 390, 0.8, 1.25);
+    for (let i = words.length - 1; i >= 0; i--) {
+      const w = words[i], age = time - w.t0;
+      if (age >= w.sec || age < 0) { if (age >= w.sec) words.splice(i, 1); continue; }
+      const pop = age < 0.16 ? backOut(age / 0.16) : 1, al = 1 - smooth(w.sec - 0.2, w.sec, age), px = w.px * wsc * (0.4 + 0.6 * pop) / 0.62;
+      toScreen(w.x, w.y, w.z);
+      const y = clamp(scr.y - px * 0.55 - age * 30, insets.top + px * 0.42, cssH - insets.bottom - px * 0.42), x = clamp(scr.x + px * 0.35, px * 1.1, cssW - px * 1.1);
+      if (w.key === 'ko') glyphRow([...String(w.n), 'ko'], x, y, px, al, w.rot);
+      else glyph(w.key, x, y, px, al, w.rot * (0.5 + 0.5 * pop));
+    }
+    const sa = time - strike.t0;
+    if (sa >= 0 && sa < T.strikeSec && G.strike) {
+      const q = G.strike, pop = sa < 0.24 ? backOut(sa / 0.24) : 1, al = 1 - smooth(T.strikeSec - 0.3, T.strikeSec, sa), jig = sa < 0.3 ? (1 - sa / 0.3) * 5 : 0;
+      const px = cssW * lerp(T.strikeW[0], T.strikeW[1], smooth(4, 10, strike.n)) / (q.adv / q.h) * (0.3 + 0.7 * pop), cy = insets.top + (cssH - insets.top - insets.bottom) * strike.at;
+      glyph('strike', cssW / 2 + Math.sin(time * 91) * jig, cy + Math.cos(time * 77) * jig, px, al, -0.06 * pop);
+      const sb = sa - 0.12, keys = [...String(strike.n), 'smash'];
+      if (sb > 0) {
+        let sub = T.strikePx * wsc / 0.62, tw = 0;
+        for (const k2 of keys) if (G[k2]) tw += G[k2].adv * sub / G[k2].h;
+        if (tw > cssW * 0.86) sub *= cssW * 0.86 / tw;
+        glyphRow(keys, cssW / 2, cy + px * 0.38 + sub * 0.42, sub * (sb < 0.2 ? backOut(sb / 0.2) : 1), al, -0.03);
+      }
     }
     sprGeo.instanceCount = sprN; sprMesh.visible = sprN > 0;
-    if (sprN) { sRect.needsUpdate = true; sUv.needsUpdate = true; sCol.needsUpdate = true; sMode.needsUpdate = true; }
+    if (sprN) { sRect.needsUpdate = true; sUv.needsUpdate = true; sCol.needsUpdate = true; sRot.needsUpdate = true; }
     sprMat.uniforms.uView.value.set(cssW, cssH);
   }
   const mood = { late: 0, goal: 0, stuck: 0, lateT: 0, goalT: 0, stuckT: 0 };
   let goalEmit = 0, lastPhase = null;
+  const words = [];
+  let wordT = -9, lineAcc = 0, partLeft = 0;
+  const strike = { t0: -99, n: 0, at: 0.3 }, tail = { id: null, t0: -9, pw: 0, on: false, px: 0, pz: 0 }, camKick = { x: 0, y: 0 };
+  function kickShake(a) { shake = Math.max(shake, a); }
   function resetFx() {
-    pN = 0; goalEmit = 0; stuckT0 = -99; shake = 0;
+    pN = 0; goalEmit = 0; stuckT0 = -99; shake = 0; sling.on = false; sling.t = 9; sling.slack = 0; sling.arrow = false; fly.id = null;
     mood.late = mood.goal = mood.stuck = mood.lateT = mood.goalT = mood.stuckT = 0;
     for (const b of bangs) b.id = null;
+    words.length = 0; wordT = -9; strike.t0 = -99; tail.id = null; camKick.x = camKick.y = 0;
+    for (const r of recs) { r.hy = 0; r.hvy = 0; r.tAng = 0; r.tVel = 0; r.tumble = false; r.sq = 0; r.sqv = 0; }
+  }
+  function matBurst(x, y0, z, v, ra, rb) {
+    const k = logK(v, T.hopV), list = [];
+    for (const r of [ra, rb]) if (r && !r.isPlayer && (MATFX[r.kind] || (r.hop && !r.isItem))) list.push(r);
+    if (!list.length) return;
+    const n = Math.min(Math.round(lerp(T.partN[0], T.partN[1], k) * (qName === 'low' ? 0.5 : 1)), Math.floor(partLeft / list.length));
+    if (n <= 0) return;
+    partLeft -= n * list.length;
+    pFloor = y0 + 0.012; pReal = 1;
+    for (const r of list) {
+      const m = MATFX[r.kind] || MATFX_DEF, ox = r.x - x, oz = r.z - z, ol = Math.hypot(ox, oz) || 1, sp = lerp(T.partV[0], T.partV[1], k);
+      for (let i = 0; i < n; i++) {
+        const c = m.c[i % m.c.length], a = rnd() * TAU, f = sp * (0.45 + 0.75 * rnd()), bx = ox / ol * 0.6, bz = oz / ol * 0.6;
+        const vx = (Math.cos(a) + bx) * f, vz = (Math.sin(a) + bz) * f, vy = (1.4 + 2.2 * rnd()) * (0.5 + 0.7 * k), y = y0 + 0.12 + rnd() * 0.12;
+        if (m.k === 5) emit(5, x, y, z, vx * 0.8, vy, vz * 0.8, 0.8 + rnd() * 0.5, 0.034 + rnd() * 0.014, 0.03, c[0], c[1], c[2], 1, 0, rnd() * TAU, (rnd() - 0.5) * 16, 1.4, 7.5, 0, 0, 1, 0);
+        else if (m.k === 6) emit(6, x, y, z, vx, vy * 1.1, vz, 0.42 + rnd() * 0.3, 0.02 + rnd() * 0.012, 0.014, c[0], c[1], c[2], 0.95, 0.25, 0, 0, 0.6, 10, 0, 0, 1, 0);
+        else if (m.k === 7) emit(7, x, y, z, vx * 0.5, vy * 0.45, vz * 0.5, 0.4 + rnd() * 0.25, 0.022 + rnd() * 0.012, 0.034 + rnd() * 0.014, c[0] * 0.9, c[1] * 0.9, c[2] * 0.9, 0.8, 0, 0, 0, 3.5, 1.6, 0, 0, 1, 0);
+        else emit(1, x, y, z, vx * 0.6, vy * 0.6, vz * 0.6, 0.35 + rnd() * 0.3, 0.05 + rnd() * 0.04, 0.01, c[0], c[1], c[2], 1, 1, rnd() * TAU, (rnd() - 0.5) * 6, 3, 2.2, 0, 0, 1, 0);
+      }
+    }
+    pFloor = -99; pReal = 0;
+  }
+  function word(x, y0, z, v, ra, rb, heavy) {
+    if (time - wordT < T.wordEvery) return;
+    const pl = ra && ra.isPlayer ? ra : rb && rb.isPlayer ? rb : null;
+    const lo = pl ? T.wordPlayerV : T.wordMinV, hi = pl ? T.wordPlayerV * 2.4 : T.wordBigV, big = v >= hi;
+    let o = null;
+    for (const r of [ra, rb]) if (r && !r.isPlayer && !r.isItem && !r.isCat && (!o || (MATFX[r.kind] && !MATFX[o.kind]))) o = r;
+    if (v < lo) return;
+    let key = null;
+    const m = o ? MATFX[o.kind] : null;
+    if (m && m.w[0]) key = big ? m.big || (m.k === 7 ? 'ボヨン' : 'ガシャーン') : m.w[v >= (lo + hi) / 2 ? 1 : 0];
+    else if (o) key = big ? 'ガシャーン' : heavy ? 'ドカッ' : 'ガタン';
+    else if (pl && !(ra && rb)) key = v >= (lo + hi) / 2 ? 'ドカッ' : 'ゴンッ';
+    if (!key) return;
+    let live = 0;
+    toScreen(x, y0 + 0.25, z); const sx = scr.x, sy = scr.y;
+    for (const w of words) { if (time - w.t0 < w.sec) { live++; toScreen(w.x, w.y, w.z); if (Math.hypot(scr.x - sx, scr.y - sy) < T.wordGapPx) return; } }
+    if (live >= T.wordMax) return;
+    for (let i = words.length - 1; i >= 0; i--) if (time - words[i].t0 >= words[i].sec) words.splice(i, 1);
+    wordT = time;
+    words.push({ key, n: 0, t0: time, x, y: y0 + 0.25, z, px: lerp(T.wordPx[0], T.wordPx[1], smooth(T.wordMinV, T.wordBigV, v)), rot: (rnd() - 0.5) * 0.36, sec: T.wordSec });
   }
   function fx(name, p) {
     if (!house) return;
     p = p || {};
     if (name === 'hit') {
       const v = p.v || 1, heavy = !!p.heavy, y0 = house.floorY(p.x, p.y), k = Math.min(v, 6);
-      const n = heavy ? clamp(Math.round(3 + v * 1.8), 4, 10) : clamp(Math.round(1.6 + v * 0.35), 2, 4), sz = heavy ? 1 : 0.62;
+      const ra = p.id != null ? recById.get(p.id) : null, rb = p.b != null && p.b >= 0 ? recById.get(p.b) : null;
+      const soft = (ra && !ra.isPlayer && MATFX[ra.kind]) || (rb && !rb.isPlayer && MATFX[rb.kind]);
+      const n = heavy ? clamp(Math.round(3 + v * 1.8), 4, 10) : soft ? 1 : clamp(Math.round(1.6 + v * 0.35), 2, 4), sz = heavy ? 1 : 0.62;
+      pReal = 1;
       for (let i = 0; i < n; i++) {
         const a = rnd() * TAU, s = (0.5 + rnd() * 1.1) * (0.6 + k * 0.22) * (heavy ? 1 : 0.7);
         emit(1, p.x, y0 + 0.12 + rnd() * 0.15, p.y, Math.cos(a) * s, 0.5 + rnd() * 0.9, Math.sin(a) * s, 0.32 + rnd() * 0.3, (0.05 + rnd() * 0.05 + k * 0.008) * sz, 0.01, 2.6, 2.3, 1.6, 1, 1, rnd() * TAU, (rnd() - 0.5) * 6, 3, 2.2, 0, 0, 1, 0);
@@ -1872,11 +2225,33 @@ export function createStage(canvas, opts = {}) {
       if (heavy) {
         for (let i = 0; i < 3; i++) emit(2, p.x + (rnd() - 0.5) * 0.12, y0 + 0.05, p.y + (rnd() - 0.5) * 0.12, (rnd() - 0.5) * 0.5, 0.15 + rnd() * 0.2, (rnd() - 0.5) * 0.5, 0.5 + rnd() * 0.3, 0.06, 0.18 + k * 0.02, 1.0, 0.96, 0.9, 0.3, 0, 0, 0, 1.5, 0, 0, 0, 1, 0);
         emit(4, p.x, y0 + 0.008, p.y, 0, 0, 0, 0.5 + k * 0.04, 0.1, 0.3 + k * 0.15, 1.7, 1.6, 1.4, 0.2 + k * 0.045, 1, 0, 0, 0, 0, 1, 0, 1, 0);
-        shake = Math.max(shake, T.shake * clamp(v / 4, 0.12, 1));
+        kickShake(T.shakeHit * clamp(v / 4, 0.15, 1));
       }
-      if (p.id != null) spinHit(recById.get(p.id), v);
-      if (p.b != null && p.b >= 0) spinHit(recById.get(p.b), v);
+      pReal = 0;
+      for (const r of [ra, rb]) if (r && r.placed) { spinHit(r, v); hopHit(r, v, r.x - p.x, r.z - p.y); }
+      matBurst(p.x, y0, p.y, v, ra, rb);
+      const pl = ra && ra.isPlayer ? ra : rb && rb.isPlayer ? rb : null, other = pl === ra ? rb : ra;
+      if (pl && v >= T.squashV && (!other || heavy)) { pl.sq = Math.max(pl.sq, clamp(v / 4, 0.35, 1)); pl.sqv = 0; kickShake(T.shakeWall * clamp(v / 3.5, 0.3, 1)); }
+      word(p.x, y0, p.y, v, ra, rb, heavy);
+    } else if (name === 'strike' || name === 'combo') {
+      const nn = Math.max(1, p.n | 0), x = p.x != null ? p.x : playerX, z = p.y != null ? p.y : playerZ, y0 = house.floorY(x, z);
+      pReal = 1;
+      const cnt = name === 'strike' ? Math.min(30, 12 + nn * 2) : 5 + nn;
+      for (let i = 0; i < cnt; i++) {
+        const a = rnd() * TAU, sp = (0.6 + rnd() * 1.6) * (name === 'strike' ? 1 : 0.6), gold = rnd() < 0.7;
+        emit(i % 3 === 0 ? 1 : 0, x, y0 + 0.2 + rnd() * 0.3, z, Math.cos(a) * sp, 1.0 + rnd() * 1.8, Math.sin(a) * sp, 0.5 + rnd() * 0.45, 0.05 + rnd() * 0.04, 0.015, gold ? 2.8 : 2.5, gold ? 2.2 : 2.4, gold ? 1.2 : 2.1, 1, 1, rnd() * TAU, (rnd() - 0.5) * 5, 1.8, 2.4, 0, 0, 1, 0);
+      }
+      emit(4, x, y0 + 0.01, z, 0, 0, 0, 0.55, 0.2, Math.min(1.9, 1.1 + nn * 0.05), 2.2, 1.9, 1.3, 0.3, 1, 0, 0, 0, 0, 1, 0, 1, 0);
+      pReal = 0;
+      if (name === 'strike') {
+        strike.t0 = time; strike.n = nn; kickShake(T.shakeStrike * clamp(nn / 6, 0.6, 1.2));
+        toScreen(playerX, house.floorY(playerX, playerZ), playerZ);
+        strike.at = (scr.y - insets.top) / Math.max(1, cssH - insets.top - insets.bottom) > 0.5 ? T.strikeAt[0] : T.strikeAt[1];
+      }
+      else { words.push({ key: 'ko', n: nn, t0: time, x, y: y0 + 0.3, z, px: T.comboPx, rot: (rnd() - 0.5) * 0.2, sec: 0.95 }); kickShake(T.shakeHit * 0.6); }
     } else if (name === 'throw') {
+      if (sling.on || sling.t < 0.1) { fly.id = p.id != null ? p.id : null; if (!sling.on && !sling.snap) { sling.snap = true; sling.slack = 0; } } else fly.id = null;
+      throwT = time;
       const pw = clamp(p.power == null ? 0.6 : p.power > 1 ? p.power / 100 : p.power, 0, 1), y0 = house.floorY(p.x, p.y) + 0.3;
       for (let i = 0; i < 6; i++) {
         const off = (rnd() - 0.5) * 0.2, d = 0.3 + rnd() * 0.25, s = 3 + 7 * pw * rnd();
@@ -1884,7 +2259,9 @@ export function createStage(canvas, opts = {}) {
       }
       emit(2, p.x - p.dx * 0.2, y0 - 0.25, p.y - p.dy * 0.2, -p.dx * 0.5, 0.1, -p.dy * 0.5, 0.45, 0.08, 0.26, 1, 0.97, 0.92, 0.25, 0, 0, 0, 2, 0, 0, 0, 1, 0);
       const r = recById.get(p.id); if (r && r.isItem) r.spinRate = Math.sign(r.spinRate || 1) * T.itemSpin * (0.6 + 0.8 * pw);
-      shake = Math.max(shake, T.shake * 0.25 * pw);
+      kickShake(T.shakeThrow * pw);
+      tail.id = p.id != null ? p.id : null; tail.t0 = time; tail.pw = pw; tail.on = false;
+      camKick.x = -p.dx * T.kickPan * pw; camKick.y = p.dy * T.kickPan * pw;
     } else if (name === 'cat') {
       const r = recById.get(p.id); if (r) r.surprised = 1;
       let b = bangs[0]; for (const q of bangs) { if (q.id === p.id) { b = q; break; } if (q.t0 < b.t0) b = q; }
@@ -1898,7 +2275,34 @@ export function createStage(canvas, opts = {}) {
       mood.lateT = 1;
       for (let i = 0; i < 4; i++) emit(4, playerX, house.floorY(playerX, playerZ) + 0.01, playerZ, 0, 0, 0, 1.8, 0.3, 3.2, 0.9, 1.15, 1.6, 0.2, 1, 0, 0, 0, 0, 1, 0, 1, i * 0.42);
     } else if (name === 'stuck') { mood.stuckT = 1; stuckT0 = time; emit(2, playerX, house.floorY(playerX, playerZ) + 0.1, playerZ, 0, 0.12, 0, 0.9, 0.12, 0.34, 1, 0.97, 0.92, 0.22, 0, 0, 0, 1, 0, 0, 0, 1, 0); }
-    else if (name === 'reset') resetFx();
+    else if (name === 'reset') { resetFx(); softCut(T.viewCutSec); }
+  }
+  function updateJuice(dt) {
+    partLeft = T.partFrame;
+    if (playerRec && curPhase === 'play' && dt > 0 && playerSpeed > T.lineV) {
+      lineAcc += dt;
+      const r = playerRec, ux = r.vx / playerSpeed, uz = r.vz / playerSpeed, k = smooth(T.lineV, T.fastV[1] * 1.3, playerSpeed), fy = house.floorY(r.x, r.z) + r.lift + 0.03, rr = r.r * r.vis;
+      while (lineAcc > T.lineEvery) {
+        lineAcc -= T.lineEvery;
+        const side = (rnd() - 0.5) * 2.2 * rr, back = rr * (0.3 + rnd() * 0.6);
+        emit(3, r.x - ux * back - uz * side, fy + rnd() * 0.2, r.z - uz * back + ux * side, r.vx * 0.12, 0, r.vz * 0.12, 0.2 + rnd() * 0.12, 0.02 + 0.012 * k, 0.008, 2.0, 2.05, 2.2, 0.3 + 0.35 * k, 1, 0, 0, 3, 0, ux, uz, 8 + 10 * k, 0);
+      }
+    } else lineAcc = 0;
+    if (tail.id != null && dt > 0) {
+      const age = time - tail.t0, r = recById.get(tail.id), sp = r ? Math.hypot(r.vx, r.vz) : 0;
+      if (age > T.tailSec || !r || (r.placed && age > 0.12 && sp < T.tailV)) tail.id = null;
+      else if (r.placed && fly.id !== r.id) {
+        const y = r.root.position.y + 0.03;
+        if (tail.on) {
+          const ex = r.x - tail.px, ez = r.z - tail.pz, L = Math.hypot(ex, ez);
+          if (L > 0.02 && L < 3) {
+            const k = smooth(T.tailV, T.tailV * 4, sp) * (1 - smooth(T.tailSec * 0.6, T.tailSec, age)), w = T.tailW * (0.7 + 0.6 * tail.pw);
+            emit(3, (r.x + tail.px) / 2, y, (r.z + tail.pz) / 2, 0, 0, 0, T.tailLife, w, w * 0.5, 2.9, 2.4, 1.5, 0.85 * k, 1, 0, 0, 0, 0, ex / L, ez / L, (L * 0.5 + w) / w, 0);
+          }
+        }
+        tail.on = true; tail.px = r.x; tail.pz = r.z;
+      }
+    }
   }
   function updateFx(dt) {
     mood.late = damp(mood.late, mood.lateT, 3.5, dt); mood.goal = damp(mood.goal, mood.goalT, 5, dt); mood.stuck = damp(mood.stuck, mood.stuckT, 4, dt);
@@ -1978,7 +2382,7 @@ export function createStage(canvas, opts = {}) {
     tipMat.uniforms.uMap.value = rtMask.texture; masksDirty = false;
   }
   const stat = { fps: 60, calls: 0, tris: 0, quality: qName, ms: 0 };
-  const auto = { on: false, n: 0, skip: T.autoSkip, strikes: 0, iv: new Float32Array(T.autoFrames), wk: new Float32Array(T.autoFrames), nw: 0 };
+  const auto = { on: false, want: false, viewed: false, n: 0, skip: T.autoSkip, strikes: 0, iv: new Float32Array(T.autoFrames), wk: new Float32Array(T.autoFrames), nw: 0 };
   const px1 = new Uint8Array(4), bgCol = new THREE.Color(T.bg[1]), moodClean = new THREE.Vector4();
   let tiltF = 0.5, tiltB = 0.3, lastDraw = 0, worldT = 0, curPhase = null, stillN = 0, pendingQ = null;
   const liveSt = { speed: 0, surprised: 0, spin: 0 };
@@ -1990,14 +2394,24 @@ export function createStage(canvas, opts = {}) {
     if (f.phase !== lastPhase) { if (lastPhase === 'done' && f.phase !== 'done') resetFx(); lastPhase = f.phase; }
     for (let i = 0; i < house.live.length; i++) house.live[i].userData.anim(worldT, dt, liveSt);
     updateBodies(f, dt);
+    const fa = f.aim, pulling = !!fa && f.phase === 'play' && fa.power >= T.aimPullMin;
+    vw.aim = pulling; vw.hasPath = pulling && !!fa.path && fa.n > 1;
+    if (vw.hasPath) vw.pathZ = fa.path[fa.n * 2 - 1];
+    vw.want = viewMode === 'whole' || !f.trail || (f.phase !== 'play' && f.phase !== 'done') ? 0 : viewMode === 'near' && pulling ? T.nearAimK : 1;
+    if (playerRec) {
+      if (vw.init && Math.abs(playerX - vw.px) + Math.abs(playerZ - vw.pz) > T.viewJump) { softCut(T.viewCutSec); vw.lx = vw.lz = vw.az = 0; }
+      vw.px = playerX; vw.pz = playerZ; vw.init = true;
+    }
     updateCamera(rdt);
+    if (auto.want && !auto.viewed && !auto.on && !pendingQ && qName !== 'low' && camMode === 'play' && vw.k > 0.95) { auto.viewed = true; auto.on = true; auto.n = 0; auto.nw = 0; auto.skip = 20; auto.strikes = 0; }
     updateGhost(f, dt);
     updateTrail(f);
+    updateJuice(dt);
     updateFx(rdt);
-    updateParticles(dt);
+    updateParticles(dt, rdt);
     updateOverlay(f, rdt);
     blobGeo.instanceCount = blobN; blobMesh.visible = blobN > 0; if (blobN) { bPos.needsUpdate = true; bStr.needsUpdate = true; }
-    const ready = f.phase === 'play' && !!playerRec && playerSpeed < 0.03 && !(f.trail && f.trail.n > 1);
+    const ready = f.phase === 'play' && !!playerRec && playerSpeed < 0.03 && !(f.trail && f.trail.n > 1) && !sling.on;
     readyK = damp(readyK, ready ? 1 : 0, ready ? 4 : 9, rdt);
     ringMesh.visible = readyK > 0.01 && !!playerRec;
     if (ringMesh.visible) { ringMat.uniforms.uP.value.set(playerX, playerRec.y + T.ringLift, playerZ, 1); ringMat.uniforms.uQ.value.set(readyK, time, T.ringR, 0); }
@@ -2064,7 +2478,7 @@ export function createStage(canvas, opts = {}) {
   }
   function draw() {
     if (!house || lost || disposed || cssW < 2 || !main) return;
-    if (pendingQ && (curPhase === 'title' || curPhase === 'intro' || stillN >= 2)) { const q = pendingQ; pendingQ = null; applyQuality(q); viewUniforms(tiltF, tiltB); auto.skip = 20; }
+    if (pendingQ && (curPhase === 'title' || curPhase === 'intro' || stillN >= 2)) { const q = pendingQ; pendingQ = null; applyQuality(q); viewUniforms(tiltF, tiltB); auto.skip = 20; auto.viewed = false; }
     if (warmJob && !aimOn && (curPhase !== 'play' || readyK > 0.6 || stillN > 8)) { const j = warmJob; warmJob = null; warmNow(j.w, j.h, j.mode, j.key); auto.skip = Math.max(auto.skip, 4); }
     const t0 = performance.now();
     renderer.info.reset();
@@ -2128,7 +2542,7 @@ export function createStage(canvas, opts = {}) {
     const kW = cssW, kH = cssH, kT = insets.top, kB = insets.bottom, kPx = pxPerM, kGhost = ghost ? ghost.root.visible : false, kRing = ringMesh.visible, kOp = trailU.uPar.value.x, kMin = trailU.uPar.value.w, kMood = postU.uMood.value;
     copyPose(poseKeep, poseLive);
     cssW = w; cssH = h; insets.top = insets.bottom = 0;
-    fitPlay(poseLive, T.plinthM + 0.08, T.fitSouth + 0.35, 0, mode === 'result' ? T.tiltResult : T.tiltPlay);
+    fitPlay(poseLive, T.snapSide, T.snapSouth, 0, mode === 'result' ? T.tiltResult : T.tiltPlay, true);
     cam.aspect = w / h; applyPose(poseLive, cam);
     _v.set(house.W / 2 - 0.5, 0, house.H / 2).project(cam); _v2.set(house.W / 2 + 0.5, 0, house.H / 2).project(cam);
     pxPerM = Math.max(4, Math.hypot((_v2.x - _v.x) * w / 2, (_v2.y - _v.y) * h / 2));
@@ -2184,19 +2598,19 @@ export function createStage(canvas, opts = {}) {
     const gv = ghost.root.visible, pn = pN, tv = trailMesh.visible, rv = ringMesh.visible, bv = blobMesh.visible, bc = blobGeo.instanceCount;
     ghost.root.visible = true; ghost.root.position.set(house.W / 2, yy, house.H / 2);
     for (let k = 0; k < 5; k++) emit(k, house.W / 2, yy, house.H / 2, 0, 0, 0, 1, 0.01, 0.01, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1, 0);
-    updateParticles(0);
+    updateParticles(0, 0);
     trailMesh.visible = ringMesh.visible = blobMesh.visible = true; blobGeo.instanceCount = Math.max(1, bc);
     if (!tv) trailGeo.setDrawRange(0, 6);
     shoot(w, h, mode, null);
-    const ovm = [dotMesh, arrowMesh, tipMesh, sprMesh], vis = [dotMesh.visible, arrowMesh.visible, tipMesh.visible, sprMesh.visible], dc = dotGeo.instanceCount, sc = sprGeo.instanceCount, aa = arrowMat.uniforms.uAlpha.value, ta = tipMat.uniforms.uAlpha.value;
+    const ovm = [dotMesh, arrowMesh, bandMesh, tipMesh, sprMesh], vis = [dotMesh.visible, arrowMesh.visible, bandMesh.visible, tipMesh.visible, sprMesh.visible], dc = dotGeo.instanceCount, sc = sprGeo.instanceCount, aa = arrowMat.uniforms.uAlpha.value, ta = tipMat.uniforms.uAlpha.value;
     for (const m of ovm) m.visible = true;
     dotGeo.instanceCount = 1; dA.array[0] = 0; dA.needsUpdate = true; sprGeo.instanceCount = 1; sCol.array[3] = 0; sCol.needsUpdate = true;
-    arrowMat.uniforms.uAlpha.value = 0; tipMat.uniforms.uAlpha.value = 0; tipMesh.visible = !!rtMask;
+    arrowMat.uniforms.uAlpha.value = 0; tipMat.uniforms.uAlpha.value = 0; bandMat.uniforms.uC.value.z = 0; tipMesh.visible = !!rtMask;
     renderer.setRenderTarget(null); renderer.autoClear = false; renderer.render(overlay, cam); renderer.autoClear = true;
     for (let i = 0; i < ovm.length; i++) ovm[i].visible = vis[i];
     dotGeo.instanceCount = dc; sprGeo.instanceCount = sc; arrowMat.uniforms.uAlpha.value = aa; tipMat.uniforms.uAlpha.value = ta;
     ghost.root.visible = gv; trailMesh.visible = tv; ringMesh.visible = rv; blobMesh.visible = bv; blobGeo.instanceCount = bc;
-    pN = pn; updateParticles(0);
+    pN = pn; updateParticles(0, 0);
     for (const r of tmp) removeRec(r);
   }
   function setCamera(mode, o = {}) {
@@ -2205,7 +2619,7 @@ export function createStage(canvas, opts = {}) {
     if (m !== camMode && (m === 'result' || m === 'finish') && camMode !== 'finish' && camMode !== 'result') { poiX = playerX; poiZ = playerZ; }
     camMode = m; camT0 = time;
     camDur = o.instant ? 0 : mode === 'intro' ? (o.fast ? T.introFastSec : T.introSec) : mode === 'finish' ? T.finishSec : T.modeSec;
-    if (camDur === 0 && house) { if (playDirty) { fitPlay(posePlay); playDirty = false; } goalPose(camMode, pose); copyPose(poseFrom, pose); poseOk = true; }
+    if (camDur === 0 && house) { if (playDirty) refitPlay(); updateView(0); goalPose(camMode, pose); copyPose(poseFrom, pose); poseOk = true; }
   }
   function onLost(e) { e.preventDefault(); lost = true; }
   function onRestored() {
@@ -2220,7 +2634,7 @@ export function createStage(canvas, opts = {}) {
   canvas.addEventListener('webglcontextrestored', onRestored, false);
   buildEnv();
   const q0 = opts.quality || 'auto';
-  auto.on = q0 === 'auto';
+  auto.on = auto.want = q0 === 'auto';
   applyQuality(q0 === 'auto' ? 'high' : q0);
   let readyDone; const ready = new Promise((res) => { readyDone = res; });
   ensureFont(() => { if (disposed) return; G = drawGlyphs(glyphCanvas); glyphTex.needsUpdate = true; drawLabels(); readyDone(); });
@@ -2233,8 +2647,9 @@ export function createStage(canvas, opts = {}) {
       if (poseOk && camMode !== 'play') { copyPose(poseFrom, pose); camT0 = time; camDur = Math.max(camDur, T.modeSec * 0.7); }
     },
     resize, setCamera, render, fx, ground, project, itemIcon, snapshot, warm,
+    setView(mode) { if ((mode === 'near' || mode === 'wide' || mode === 'whole') && mode !== viewMode) { viewMode = mode; softCut(T.viewCutSec); } return viewMode; },
     setAvoid(list) { avoidPx = list && list.length ? list.map((q) => ({ x: q.x, y: q.y, w: q.w, h: q.h })) : list ? [] : null; labelDirty = true; placeLabels(); },
-    setQuality(q) { auto.on = q === 'auto'; auto.n = 0; auto.nw = 0; auto.skip = 20; auto.strikes = 0; pendingQ = null; applyQuality(q === 'auto' ? 'high' : q); },
+    setQuality(q) { auto.on = auto.want = q === 'auto'; auto.viewed = false; auto.n = 0; auto.nw = 0; auto.skip = 20; auto.strikes = 0; pendingQ = null; applyQuality(q === 'auto' ? 'high' : q); },
     stats() { return stat; },
     dispose() {
       disposed = true;
@@ -2247,12 +2662,12 @@ export function createStage(canvas, opts = {}) {
       freeTargets(main); freeSnap();
       for (const t of [rtHouse, rtMask, envRT]) if (t) t.dispose();
       if (sun.shadow.map) sun.shadow.map.dispose();
-      for (const m of [floorMat, lawnMat, tableMat, shaftMat, dustMat, labelMat, chevMat, glowMat, downMat, upMat, postMat, iconPostMat, bakeMat, silMat, ghostMat, dotMat, arrowMat, tipMat, sprMat, ringMat, partMesh.material, blobMesh.material, trailMesh.material, iconShadow.material]) m.dispose();
+      for (const m of [floorMat, lawnMat, tableMat, shaftMat, dustMat, labelMat, chevMat, glowMat, downMat, upMat, postMat, iconPostMat, bakeMat, silMat, ghostMat, dotMat, arrowMat, bandMat, tipMat, sprMat, ringMat, partMesh.material, blobMesh.material, trailMesh.material, iconShadow.material]) m.dispose();
       for (const g of [fsGeo, partGeo, blobGeo, trailGeo, dotGeo, arrowGeo, tipGeo, sprGeo, ringMesh.geometry, iconShadow.geometry]) g.dispose();
       labelTex.dispose(); glyphTex.dispose(); pmrem.dispose(); renderer.dispose();
     },
     ready,
     update, draw,
-    debug: { renderer, scene, cam, T, get house() { return house; }, get pxPerM() { return pxPerM; }, get avoid() { return avoidW; }, get labels() { return labelSlots; } },
+    debug: { renderer, scene, cam, T, get house() { return house; }, get pxPerM() { return pxPerM; }, get avoid() { return avoidW; }, get labels() { return labelSlots; }, parts() { return pN; }, get words() { return words.length; } },
   };
 }

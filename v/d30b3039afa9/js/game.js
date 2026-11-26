@@ -1,5 +1,5 @@
 import { createUI } from './ui.js';
-import { HINTS, medalFor, shareText } from './text.js';
+import { HINTS, PULLS, pullMode, medalFor, shareText } from './text.js';
 import { createStore, KEYS, better, validRecord } from './store.js';
 import { createPull, guardGestures } from './input.js';
 import { createAimView, createCoach } from './aimview.js';
@@ -27,6 +27,8 @@ const TUNE = {
   hintAfterMs: 2600,
   coachPlays: 2,
   coachIdleSec: 3,
+  coachFlipMm: 400,
+  iconPx: 64,
   retryStill: 3,
   slow: 0.25,
   slowHold: 0.42,
@@ -39,7 +41,7 @@ const TUNE = {
   retryKeyLock: 0.35,
   newbestGap: 550,
   replayLead: 0.6,
-  replayAuto2x: 20,
+  replayAuto2xFrac: 1 / 2,
   replayMinSec: 5,
   recFrameCap: 5,
   recStepsCap: 6000,
@@ -52,15 +54,36 @@ const TUNE = {
   hitFxMin: 0.25,
   hitFxMax: 4,
   afterGain: 0.55,
+  pinG: 1500,
+  crashMin: 0.5,
+  crashFull: 8,
+  smashV: 0.8,
+  stillV: 0.05,
+  smashWinSec: 1.5,
+  smashQuietSec: 0.3,
+  strikeN: 5,
+  comboN: 2,
+  stopMin: 0.04, stopMax: 0.09,
+  stopHitV: 2.5,
+  stopHitFull: 8,
+  stopPins: 3,
+  stopPinsFull: 8,
+  stopGap: 0.6,
   vibThrow: [8, 22], vibHit: [6, 18], vibGoal: [14, 70, 22],
+  vibHeavy: [25, 40],
+  vibStrike: [12, 36, 12, 36, 14],
   vibHitFull: 2.0,
-  hotTenths: 100,
+  hotFrac: 1 / 6,
   wakeIdleSec: 30,
   dayCheckFrames: 120,
   volumeTick: 140,
 };
-const DEFAULT_SETTINGS = { sfx: 0.8, bgm: 0.6, vibe: true, ghost: true, invert: false, quality: 'auto' };
+const DEFAULT_SETTINGS = { sfx: 0.8, bgm: 0.6, vibe: true, ghost: true, pull: PULLS.def, quality: 'auto' };
+const PULL_VER = 2;
 const C = window.NFCore;
+const LIMIT = C.CONFIG.LIMIT_TICKS;
+const HOT_TICKS = Math.max(240, Math.round(LIMIT * TUNE.hotFrac / 240) * 240);
+const PREDICT_TICKS = Number.isInteger(C.CONFIG.PREDICT_TICKS) && C.CONFIG.PREDICT_TICKS > 0 ? C.CONFIG.PREDICT_TICKS : TUNE.predictTicks;
 const LAYOUTS = window.NF_LAYOUTS || [];
 const WEB = window.NF_WEB || null;
 const QS = new URLSearchParams(location.search);
@@ -85,7 +108,7 @@ function web(name, a, b) {
   } catch (e) { note(e); return undefined; }
 }
 const NO_STAGE = {
-  setLayout() {}, setBodies() {}, setInsets() {}, setAvoid() {}, resize() {}, setCamera() {}, render() {}, update() {}, draw() {}, fx() {},
+  setLayout() {}, setBodies() {}, setInsets() {}, setAvoid() {}, setView() {}, resize() {}, setCamera() {}, render() {}, update() {}, draw() {}, fx() {},
   ground() { return null; }, project() { return null; }, itemIcon() { return null; }, snapshot() { return null; }, warm() { return false; },
   setQuality() {}, stats() { return null; },
 };
@@ -109,7 +132,9 @@ let stageDead = false;
 let state = null;
 let phase = 'boot';
 let paused = false;
-let sel = 4;
+const FIRST = Math.max(0, Number.isInteger(C.CONFIG.FIRST_ITEM) ? C.CONFIG.FIRST_ITEM : C.ITEMS.findIndex((it) => it.id === 'kyoka'));
+const RANDO = C.ITEMS.findIndex((it) => it.id === 'rando');
+let sel = FIRST;
 let runId = 0;
 let tampered = false;
 let plays = 0;
@@ -134,7 +159,7 @@ const fBodies = [];
 const aimF = { dx: 0, dy: 1, power: 0, item: 'kyoka', dv: 0, path: new Float32Array(200), n: 0 };
 const ghostF = { x: 0, y: 0, vx: 0, vy: 0 };
 const trail = { pts: new Float32Array(TUNE.trailMax * 2), n: 0 };
-const f = { t: 0, dt: 0, bodies: fBodies, player: { rando: true, mood: 'sleep', kick: 0 }, aim: null, trail: null, ghost: null, timeLeft: 60, phase: 'title' };
+const f = { t: 0, dt: 0, bodies: fBodies, player: { rando: true, mood: 'sleep', kick: 0 }, aim: null, trail: null, ghost: null, timeLeft: LIMIT / 240, phase: 'title' };
 let trailEvery = TUNE.trailEvery;
 let bodiesDirty = true;
 const defs = [];
@@ -143,13 +168,13 @@ const aim = { on: false, dir: 64, power: 0, item: -1, age: 0, r: TUNE.pullPx };
 const gA = { x: 0, y: 0 }, gB = { x: 0, y: 0 }, pA = { x: 0, y: 0 };
 let queued = null;
 const queueBox = { item: 0, dir: 0, power: 0 };
-const fr = { hitV: 0, hitHeavy: false, hitSoft: false, hitPan: 0, meow: -1, meowPan: 0, fx: 0, vib: 0 };
+const fr = { hitV: 0, hitHeavy: false, hitSoft: false, hitPan: 0, meow: -1, meowPan: 0, fx: 0, vib: 0, vibHeavy: 0, vibStrike: false, crashN: 0, crashV: 0, crashMat: 'plastic', crashPan: 0, stamp: 1 };
 const sndHit = { v: 0, heavy: false, soft: false, pan: 0, gain: 1 }, sndMeow = { v: 0, pan: 0 }, sndThrow = { power: 0, g: 0, pan: 0 };
+const sndCrash = { v: 0, n: 0, mat: 'plastic', pan: 0 }, sndStrike = { n: 0 }, fxStrike = { n: 0, x: 0, y: 0 };
 const sndSel = { g: 0 }, sndTick = { left: 0 }, sndMedal = { medal: null };
 const fxHit = { x: 0, y: 0, v: 0, heavy: false, id: 0, b: -1 }, fxThrow = { id: 0, x: 0, y: 0, dx: 0, dy: 0, power: 0 }, fxOut = { id: 0, x: 0, y: 0 }, fxCat = { id: 0 };
-const hudArg = { tenths: 600, throws: 0, speed: 0, hot: false, running: false };
-const invArg = { counts: null, sel: 4, icons: null };
-const capArg = { name: '', weight: 0, dv: 0 };
+const hudArg = { tenths: LIMIT / 24, hot: false, running: false };
+const invArg = { counts: null, sel: FIRST, icons: null };
 let ghost = null, ghostLog = null, ghostI = 0;
 const ghostOk = { key: '', ok: false };
 let sum = null, lastR = null, endLog = null, medalUp = false;
@@ -201,14 +226,14 @@ function pullLen() {
   const s = Math.min(window.innerWidth || TUNE.pullRef, window.innerHeight || TUNE.pullRef) / TUNE.pullRef;
   return TUNE.pullPx * Math.min(TUNE.pullWide, Math.max(1, s));
 }
-function tenthsLeft() { return Math.ceil((C.CONFIG.LIMIT_TICKS - state.tick) / 24); }
+function tenthsLeft() { return Math.ceil((LIMIT - state.tick) / 24); }
 function loadSettings() {
   const s = store.get(KEYS.settings, {}) || {}, d = DEFAULT_SETTINGS;
   const num = (v, dv) => (Number.isFinite(v) ? clamp01(v) : dv);
   return {
     sfx: num(s.sfx, d.sfx), bgm: num(s.bgm, d.bgm),
     vibe: typeof s.vibe === 'boolean' ? s.vibe : d.vibe, ghost: typeof s.ghost === 'boolean' ? s.ghost : d.ghost,
-    invert: typeof s.invert === 'boolean' ? s.invert : d.invert,
+    pull: s.pullv === PULL_VER ? pullMode(s.pull) : d.pull,
     quality: s.quality === 'high' || s.quality === 'low' ? s.quality : 'auto',
   };
 }
@@ -266,16 +291,20 @@ function applyInsets() {
 function coachShow() {
   if (!coach || plays >= TUNE.coachPlays) return;
   const ins = ui.insets(), h = window.innerHeight || 0;
-  coach.show((window.innerWidth || 0) / 2, (ins.top + (h - ins.bottom)) / 2, !!settings.invert);
+  const doorX = (layout.door.x1 + layout.door.x2) / 2, flip = doorX < layout.start.x - TUNE.coachFlipMm;
+  coach.show((window.innerWidth || 0) / 2, (ins.top + (h - ins.bottom)) / 2, settings.pull === 'same', flip);
   coachOn = true;
+  syncIdleHint();
   setAvoid(coach.rects());
 }
 function coachHide() {
   if (!coachOn) return;
   coachOn = false;
   coach.hide();
+  syncIdleHint();
   setAvoid(null);
 }
+function syncIdleHint() { ui.idleHint(!coachOn && !aim.on); }
 function setAvoid(list) { avoidNow = list; stage.setAvoid(list); }
 function snapPrev(st, px, py) {
   const bs = st.bodies;
@@ -294,7 +323,8 @@ function resetRun() {
   snapPrev(state, prevX, prevY);
   acc = 0; timeScale = 1; endT = 0; endOutcome = null; kick = 0; queued = null;
   trail.n = 0; trailEvery = TUNE.trailEvery;
-  sel = Number.isInteger(C.CONFIG.FIRST_ITEM) ? C.CONFIG.FIRST_ITEM : 4;
+  smashReset();
+  sel = FIRST;
   tampered = false; wantShot = false; shotDone = false; cleanAt = 0; sum = null; medalUp = false;
   freeCanvas(shot); shot = null;
   if (share) freeCanvas(share.card);
@@ -324,16 +354,11 @@ function setupGhost() {
 function syncInventory() {
   invArg.counts = state.inv; invArg.sel = sel;
   ui.setInventory(invArg);
-  const it = C.ITEMS[sel];
-  capArg.name = it.name; capArg.weight = it.g; capArg.dv = C.previewDv(state, sel, C.CONFIG.POWERS) * VMS;
-  ui.setCaption(capArg);
 }
 function syncHud() {
   hudArg.tenths = tenthsLeft();
-  hudArg.throws = state.log.length;
-  hudArg.speed = C.speed(state.bodies[0]);
   hudArg.running = phase === 'play' || phase === 'ending' || phase === 'replay' || phase === 'replayEnd';
-  hudArg.hot = hudArg.running && hudArg.tenths <= TUNE.hotTenths;
+  hudArg.hot = hudArg.running && hudArg.tenths * 24 <= HOT_TICKS;
   ui.setHud(hudArg);
 }
 function autoSelect() {
@@ -393,6 +418,7 @@ function enterReady() {
   wakeIdle = false;
   syncInventory();
   coachShow();
+  syncIdleHint();
   syncHud();
   wakeOn();
 }
@@ -459,12 +485,14 @@ function startAim(x, y) {
   aimF.n = 0; aimF.power = 0; aimF.dv = 0;
   readyT = 0;
   coachHide();
+  syncIdleHint();
   view.show(x, y, aim.r);
   return true;
 }
 function endAim(thrown) {
   if (!aim.on) return;
   aim.on = false;
+  syncIdleHint();
   f.aim = null;
   sfx.aim(0);
   if (view) view.hide(thrown);
@@ -481,7 +509,7 @@ function updateAim() {
       const ex = b.x - a.x, ey = b.y - a.y, el = ex * ex + ey * ey;
       if (el > 1e-10 && el < 1e6) { gx = ex; gy = ey; }
     }
-    if (settings.invert) { gx = -gx; gy = -gy; }
+    if (settings.pull === 'same') { gx = -gx; gy = -gy; }
     dir = C.dirOf(gx, gy);
   }
   const ok = power >= C.CONFIG.MIN_POWER;
@@ -491,8 +519,9 @@ function updateAim() {
     aimF.dx = C.DIRX[dir] / 16384; aimF.dy = C.DIRY[dir] / 16384;
     aimF.power = power / C.CONFIG.POWERS;
     aimF.item = C.ITEMS[sel].id;
+    aimF.inv = settings.pull === 'same';
     if (ok) {
-      const n = C.predict(state, sel, dir, power, TUNE.predictTicks, TUNE.predictStride, predOut);
+      const n = C.predict(state, sel, dir, power, PREDICT_TICKS, TUNE.predictStride, predOut);
       const path = aimF.path;
       for (let i = 0; i < n * 2; i++) path[i] = predOut[i] * UM;
       aimF.n = n;
@@ -559,6 +588,7 @@ function throwEffects(item, dir, power) {
   sndThrow.power = power / C.CONFIG.POWERS; sndThrow.g = C.ITEMS[item].g; sndThrow.pan = (p.x * UM) / (layout.w / 1000) * 2 - 1;
   sfx.play('throw', sndThrow);
   kick = 1;
+  smashOpen(false);
 }
 function pushTrail() {
   if (trail.n >= TUNE.trailMax) {
@@ -585,10 +615,11 @@ function stepOnce(quiet) {
   perf.steps++;
   if (state.tick % trailEvery === 0 || state.over) pushTrail();
   if (ghost) stepGhost();
+  smashTick(quiet);
   if (state.events.length) handleEvents(state.events, quiet, 1);
   if (phase !== 'play') return;
-  const left = C.CONFIG.LIMIT_TICKS - state.tick;
-  if (!quiet && left > 0 && left <= 2400 && left % 240 === 0) { sndTick.left = left / 240; sfx.play('tick', sndTick); }
+  const left = LIMIT - state.tick;
+  if (!quiet && left > 0 && left <= HOT_TICKS && left % 240 === 0) { sndTick.left = left / 240; sfx.play('tick', sndTick); }
   if (queued) { const q = queued; queued = null; doThrow(q.item, q.dir, q.power); }
 }
 function handleEvents(evs, quiet, gain) {
@@ -611,6 +642,9 @@ function handleEvents(evs, quiet, gain) {
         if (s > fr.hitV) { fr.hitV = s; fr.hitHeavy = heavy; fr.hitSoft = soft; fr.hitPan = x / wM * 2 - 1; }
       }
       if ((e.a === 0 || e.b === 0) && gain === 1 && !rp.on) { const k = clamp01(v / TUNE.vibHitFull); if (k > fr.vib) fr.vib = k; }
+      if ((e.a === 0 || e.b === 0) && v >= TUNE.stopHitV) askStop((v - TUNE.stopHitV) / (TUNE.stopHitFull - TUNE.stopHitV), gain === 1 && !rp.on);
+      crashOf(e.a, v, x, gain);
+      if (B) crashOf(e.b, v, x, gain);
     } else if (e.t === 'cat') {
       if (quiet) continue;
       const cb = bs[e.id], s = clamp01(e.v * VMS / TUNE.hitFull) * gain;
@@ -628,9 +662,107 @@ function handleEvents(evs, quiet, gain) {
 }
 function flushFrame() {
   if (fr.hitV > 0) { sndHit.v = fr.hitV; sndHit.heavy = fr.hitHeavy; sndHit.soft = fr.hitSoft; sndHit.pan = fr.hitPan; sfx.play('hit', sndHit); }
+  if (fr.crashN > 0) { sndCrash.v = fr.crashV; sndCrash.n = fr.crashN; sndCrash.mat = fr.crashMat; sndCrash.pan = fr.crashPan; sfx.play('crash', sndCrash); }
   if (fr.meow >= 0) { sndMeow.v = fr.meow; sndMeow.pan = fr.meowPan; sfx.play('meow', sndMeow); }
-  if (fr.vib > 0) buzz('hit', fr.vib);
-  fr.hitV = 0; fr.meow = -1; fr.fx = 0; fr.vib = 0;
+  if (fr.vibStrike) buzz('strike', 1);
+  else if (fr.vibHeavy > 0) buzz('heavy', fr.vibHeavy);
+  else if (fr.vib > 0) buzz('hit', fr.vib);
+  fr.hitV = 0; fr.meow = -1; fr.fx = 0; fr.vib = 0; fr.vibHeavy = 0; fr.vibStrike = false; fr.crashN = 0; fr.crashV = 0;
+  fr.stamp++;
+}
+const sm = {
+  mv: new Uint8Array(256),
+  got: new Uint8Array(256),
+  seen: new Uint32Array(256),
+  total: 0, best: 0,
+  strikes: 0, combos: 0, last: null,
+  open: false, t0: 0, tl: 0, n: 0, sx: 0, sy: 0,
+};
+const SMASH_GO2 = (TUNE.smashV / VMS) ** 2, SMASH_STILL2 = (TUNE.stillV / VMS) ** 2;
+const SMASH_WIN = Math.round(TUNE.smashWinSec * 240), SMASH_QUIET = Math.round(TUNE.smashQuietSec * 240);
+const MAT = {
+  book: 'paper', books: 'paper', manga: 'paper', magazine: 'paper', notebook: 'paper', newspaper: 'paper', paper: 'paper',
+  cushion: 'soft', pillow: 'soft', makura: 'soft', plush: 'soft', nuigurumi: 'soft', teddy: 'soft', doll: 'soft', towel: 'soft',
+  shoe: 'soft', slipper: 'soft', sneaker: 'soft', loafer: 'soft',
+  bottle: 'plastic', pet: 'plastic', toy: 'plastic', basket: 'plastic', kago: 'plastic', ball: 'plastic', bucket: 'plastic', cup: 'plastic', can: 'plastic', robot: 'plastic', boot: 'plastic',
+  chair: 'wood', box: 'wood', stool: 'wood', block: 'wood', tsumiki: 'wood', geta: 'wood',
+};
+let stopT = 0, stopGapT = 0, stopReq = 0, stopVib = 0;
+const stopLog = { n: 0, sec: 0 };
+function smashReset() {
+  sm.mv.fill(0); sm.got.fill(0);
+  sm.total = 0; sm.best = 0; sm.strikes = 0; sm.combos = 0; sm.last = null; sm.open = false; sm.n = 0;
+  stopT = 0; stopGapT = 0; stopReq = 0; stopVib = 0; stopLog.n = 0; stopLog.sec = 0;
+}
+function smashOpen(quiet) {
+  if (sm.open) smashClose(quiet);
+  sm.open = true; sm.t0 = state.tick; sm.tl = state.tick; sm.n = 0; sm.sx = 0; sm.sy = 0;
+}
+function smashClose(quiet) {
+  if (!sm.open) return;
+  sm.open = false;
+  const n = sm.n;
+  if (n > sm.best) sm.best = n;
+  if (n < TUNE.comboN) return;
+  fxStrike.n = n; fxStrike.x = sm.sx / n * UM; fxStrike.y = sm.sy / n * UM;
+  sm.last = { n, x: +fxStrike.x.toFixed(2), y: +fxStrike.y.toFixed(2), tick: state.tick };
+  if (n >= TUNE.strikeN) sm.strikes++; else sm.combos++;
+  if (quiet) return;
+  if (n >= TUNE.strikeN) {
+    stage.fx('strike', fxStrike);
+    sndStrike.n = n; sfx.play('strike', sndStrike);
+    if (!rp.on) fr.vibStrike = true;
+  } else stage.fx('combo', fxStrike);
+}
+function smashTick(quiet) {
+  const bs = state.bodies, mv = sm.mv, got = sm.got;
+  let fresh = 0;
+  for (let i = 1; i < bs.length && i < mv.length; i++) {
+    const b = bs[i];
+    if (!b.alive || b.item >= 0 || b.kind === 'cat') continue;
+    const v2 = b.vx * b.vx + b.vy * b.vy;
+    if (mv[i]) { if (v2 < SMASH_STILL2) mv[i] = 0; continue; }
+    if (v2 <= SMASH_GO2) continue;
+    mv[i] = 1; fresh++;
+    if (!got[i]) { got[i] = 1; sm.total++; }
+    if (sm.open) { sm.n++; sm.sx += b.x; sm.sy += b.y; sm.tl = state.tick; }
+  }
+  if (fresh >= TUNE.stopPins && !quiet) askStop((fresh - TUNE.stopPins) / (TUNE.stopPinsFull - TUNE.stopPins), false);
+  if (sm.open && (state.tick - sm.t0 >= SMASH_WIN || (sm.n > 0 && state.tick - sm.tl >= SMASH_QUIET))) smashClose(quiet);
+}
+function askStop(k, vib) {
+  const d = lerp(TUNE.stopMin, TUNE.stopMax, clamp01(k));
+  if (d > stopReq) stopReq = d;
+  if (vib && clamp01(k) + 0.01 > stopVib) stopVib = clamp01(k) + 0.01;
+}
+function takeStop() {
+  const d = stopReq, k = stopVib;
+  stopReq = 0; stopVib = 0;
+  if (!(d > 0) || stopGapT > 0 || (phase !== 'play' && phase !== 'replay')) return false;
+  stopT = phase === 'replay' ? d / rp.speed : d;
+  stopGapT = TUNE.stopGap;
+  stopLog.n++; stopLog.sec += stopT;
+  if (k > 0 && !rp.on) fr.vibHeavy = Math.max(fr.vibHeavy, k);
+  return true;
+}
+function eatStop(dt) {
+  if (stopGapT > 0) stopGapT -= dt;
+  if (stopT <= 0) return dt;
+  const u = Math.min(stopT, dt);
+  stopT -= u;
+  return dt - u;
+}
+function crashOf(i, v, x, gain) {
+  const b = state.bodies[i];
+  if (!b || i === 0 || b.item >= 0 || b.kind === 'cat' || b.g > TUNE.pinG || v < TUNE.crashMin || i >= sm.seen.length) return;
+  if (sm.seen[i] === fr.stamp) return;
+  sm.seen[i] = fr.stamp;
+  fr.crashN++;
+  const s = clamp01(v / TUNE.crashFull) * gain;
+  if (s > fr.crashV) {
+    const src = layout.bodies && layout.bodies[i - 1];
+    fr.crashV = s; fr.crashMat = (src && MAT[src.variant]) || MAT[b.kind] || 'plastic'; fr.crashPan = x / (layout.w / 1000) * 2 - 1;
+  }
 }
 function onEnd(outcome) {
   if (phase !== 'play') return;
@@ -640,6 +772,8 @@ function onEnd(outcome) {
   if (pull) pull.abort();
   endAim(false);
   ghost = null;
+  smashClose(false);
+  stopT = 0; stopReq = 0;
   sum = C.summary(state);
   endLog = state.log.map((e) => e.slice());
   resultDelay = outcome === 'out' ? TUNE.resultOut : TUNE.resultFail;
@@ -687,6 +821,7 @@ function makeResult() {
     outcome: sum.outcome, tenths: sum.tenths, throws: sum.throws, best, newBest, medal, medalTimes: layout.medals || null,
     dist: sum.distDoor / 1000, catDist: sum.catDist / 1000, catOut: sum.catOut, cats, randoLeft: sum.randoLeft,
     thrown: sum.thrown, day: dayChar(layout), layoutName: layout.name, practice, image: null, shareText: '',
+    smashed: sm.total, smashBest: sm.best,
   };
   r.shareText = shareText(r, shareUrl());
   return r;
@@ -787,7 +922,7 @@ async function buildCard(id) {
 }
 function replayOpen() {
   if (phase !== 'result' || !sum || !lastR || !Array.isArray(endLog) || !endLog.length) return;
-  rp.pick = sum.ticks / 240 > TUNE.replayAuto2x ? 2 : 1;
+  rp.pick = sum.ticks > LIMIT * TUNE.replayAuto2xFrac ? 2 : 1;
   ui.setReplay({ mode: 'watch', speed: rp.pick, label: rp.pick > 1 ? rp.pick + '×' : '', canRecord: !!videoSupport(false), view: null, chip: '' });
   ui.screen('replay');
   replayBegin(false);
@@ -808,6 +943,7 @@ function replayBegin(record) {
   snapPrev(state, prevX, prevY);
   acc = 0; timeScale = 1; endT = 0; endOutcome = null; kick = 0; queued = null; ghost = null;
   trail.n = 0; trailEvery = TUNE.trailEvery;
+  smashReset();
   bodiesDirty = true;
   stage.fx('reset');
   view.note(null);
@@ -836,12 +972,15 @@ function replayStep() {
   snapPrev(state, prevX, prevY);
   C.step(state);
   if (state.tick % trailEvery === 0 || state.over) pushTrail();
+  smashTick(false);
   if (state.events.length) handleEvents(state.events, false, 1);
   if (phase !== 'replay') return;
-  const left = C.CONFIG.LIMIT_TICKS - state.tick;
-  if (left > 0 && left <= 2400 && left % 240 === 0) { sndTick.left = left / 240; sfx.play('tick', sndTick); }
+  const left = LIMIT - state.tick;
+  if (left > 0 && left <= HOT_TICKS && left % 240 === 0) { sndTick.left = left / 240; sfx.play('tick', sndTick); }
 }
 function replayEnded(outcome) {
+  smashClose(false);
+  stopT = 0; stopReq = 0;
   phase = 'replayEnd';
   endT = 0; endOutcome = outcome;
   const end = rp.recording ? (outcome === 'out' ? VIDEO.endOut : VIDEO.endFail) : (outcome === 'out' ? TUNE.resultOut : TUNE.resultFail);
@@ -853,7 +992,7 @@ function replayExit() {
   if (!rp.on) return;
   recDrop();
   if (!state.over) {
-    let guard = C.CONFIG.LIMIT_TICKS + 8;
+    let guard = LIMIT + 8;
     while (!state.over && guard-- > 0) {
       while (rp.i < endLog.length && endLog[rp.i][0] <= state.tick) { const e = endLog[rp.i++]; C.throwItem(state, e[1], e[2], e[3]); }
       C.step(state);
@@ -1024,6 +1163,8 @@ function buzz(kind, k) {
   try {
     if (kind === 'throw') nav.vibrate(Math.round(lerp(TUNE.vibThrow[0], TUNE.vibThrow[1], k)));
     else if (kind === 'hit') nav.vibrate(Math.round(lerp(TUNE.vibHit[0], TUNE.vibHit[1], k)));
+    else if (kind === 'heavy') nav.vibrate(Math.round(lerp(TUNE.vibHeavy[0], TUNE.vibHeavy[1], k)));
+    else if (kind === 'strike') nav.vibrate(TUNE.vibStrike);
     else nav.vibrate(TUNE.vibGoal);
   } catch (e) {   }
 }
@@ -1050,7 +1191,7 @@ let volumeAt = 0;
 function setSetting(k, v) {
   if (!(k in DEFAULT_SETTINGS)) return;
   settings[k] = v;
-  store.set(KEYS.settings, settings);
+  store.set(KEYS.settings, { ...settings, pullv: PULL_VER });
   if (k === 'sfx' || k === 'bgm') {
     sfx.setVolume(settings);
     const now = performance.now();
@@ -1058,7 +1199,7 @@ function setSetting(k, v) {
   } else if (k === 'quality') { stage.setQuality(v); drawHold = 3; }
   else if (k === 'ghost') { if (!v) ghost = null; else if (phase === 'ready') setupGhost(); }
   else if (k === 'vibe' && v) buzz('throw', 0.5);
-  else if (k === 'invert' && coachOn) coachShow();
+  else if (k === 'pull' && coachOn) coachShow();
 }
 function syncBodies() {
   if (!bodiesDirty) return;
@@ -1103,19 +1244,25 @@ function advance(dt) {
     idleT += dt;
     if (!wakeIdle && idleT >= TUNE.wakeIdleSec) { wakeIdle = true; wakeOff(); }
   } else if (phase === 'play') {
-    acc += dt;
+    acc += eatStop(dt);
     let n = 0;
-    while (acc >= STEP && n < TUNE.stepsCap && phase === 'play') { stepOnce(false); acc -= STEP; n++; }
+    while (acc >= STEP && n < TUNE.stepsCap && phase === 'play') {
+      stepOnce(false); acc -= STEP; n++;
+      if (stopReq > 0 && takeStop()) break;
+    }
     if (n >= TUNE.stepsCap && acc >= STEP) acc -= Math.floor(acc / STEP) * STEP;
     if (phase === 'play' && aim.on) updateAim();
   } else if (phase === 'replay') {
     rp.t += dt; rp.capT += dt;
     if (rp.lead > 0) rp.lead -= dt;
     else {
-      acc += dt * rp.speed;
+      acc += eatStop(dt) * rp.speed;
       let n = 0;
       const lim = rp.recording ? TUNE.recStepsCap : TUNE.stepsCap;
-      while (acc >= STEP && n < lim && phase === 'replay') { replayStep(); acc -= STEP; n++; }
+      while (acc >= STEP && n < lim && phase === 'replay') {
+        replayStep(); acc -= STEP; n++;
+        if (stopReq > 0 && takeStop()) break;
+      }
       if (n >= lim && acc >= STEP) acc -= Math.floor(acc / STEP) * STEP;
     }
   } else if (phase === 'ending' || phase === 'result' || phase === 'replayEnd') {
@@ -1137,6 +1284,7 @@ function advance(dt) {
       }
       if (n >= TUNE.stepsCap && acc >= STEP) acc -= Math.floor(acc / STEP) * STEP;
     } else acc = STEP;
+    stopReq = 0; stopVib = 0; stopT = 0;
     if (phase === 'ending') {
       if (!shotDone && endT >= TUNE.shotAt) wantShot = true;
       if (endT >= resultDelay) showResult();
@@ -1154,10 +1302,10 @@ function draw(dt) {
   syncBodies();
   fillBodies(alpha);
   const p = state.bodies[0], sp = C.speed(p);
-  f.t += dt; f.dt = dt * timeScale;
+  f.t += dt; f.dt = stopT > 0 ? 0 : dt * timeScale;
   if (stillLeft > 0) { if (phase === 'ready') { stillLeft--; f.dt = 0; } else stillLeft = 0; }
   f.phase = PHASE_F[phase];
-  f.player.rando = state.inv[6] > 0;
+  f.player.rando = RANDO >= 0 && state.inv[RANDO] > 0;
   f.player.kick = kick;
   f.player.mood = phase === 'title' || phase === 'boot' ? 'sleep'
     : phase === 'intro' ? (introT < introLen * TUNE.wakeAt ? 'sleep' : 'idle')
@@ -1171,7 +1319,7 @@ function draw(dt) {
     ghostF.vx = g.vx * VMS; ghostF.vy = g.vy * VMS;
     f.ghost = ghostF;
   } else f.ghost = null;
-  f.timeLeft = (C.CONFIG.LIMIT_TICKS - state.tick) / 240;
+  f.timeLeft = (LIMIT - state.tick) / 240;
   if (wantShot) {
     wantShot = false;
     stage.update(f);
@@ -1240,6 +1388,7 @@ async function boot() {
   ui = createUI(handlers);
   store = createStore(() => { try { ui.toast('このブラウザでは記録が残りません'); } catch (e) { note(e); } });
   settings = loadSettings();
+  ui.setSettings(settings);
   plays = store.get(KEYS.plays, 0) | 0;
   guardGestures(canvas);
   const [stageMod, sfxMod] = await Promise.all([
@@ -1252,6 +1401,7 @@ async function boot() {
   if (WEB && typeof WEB.bgmBase === 'string' && WEB.bgmBase) sfxOpt.bgmBase = WEB.bgmBase;
   try { if (sfxMod) realSfx = sfxMod.createSfx(sfxOpt); } catch (e) { note(e); }
   stage = guard(realStage, NO_STAGE);
+  stage.setView('whole');
   sfx = guard(realSfx, NO_SFX);
   stageDead = !realStage;
   applySettings();
@@ -1260,7 +1410,7 @@ async function boot() {
   phase = 'title';
   resetRun();
   refreshTitle();
-  const icons = C.ITEMS.map((it) => stage.itemIcon(it.id, 44) || null);
+  const icons = C.ITEMS.map((it) => stage.itemIcon(it.id, TUNE.iconPx) || null);
   if (icons.every((c) => c)) {
     invArg.icons = icons;
     iconMap = {};
@@ -1353,7 +1503,9 @@ function installDebug() {
       player: { x: p.x * UM, y: p.y * UM, vx: p.vx * VMS, vy: p.vy * VMS, speed: C.speed(p) / 1000 },
       bodies: state.bodies.filter((b) => b.alive).length, layout: layout.id, practice: layout !== layoutOfDate(runDate), official: !tampered && !DEBUG_URL && layout === layoutOfDate(runDate), runDate, todayKey,
       aim: aim.on ? { dir: aim.dir, power: aim.power, n: aimF.n, dv: aimF.dv } : null,
-      trail: trail.n, ghost: !!ghost, plays, stageDead, wake: wakeWant, veil: !!(canvas && canvas.hasAttribute('data-veil')), settings: { ...settings }, insets: insetsNow, coach: coachOn, avoid: avoidNow,
+      smash: { total: sm.total, best: sm.best, strikes: sm.strikes, combos: sm.combos, last: sm.last, open: sm.open },
+      stop: { n: stopLog.n, ms: Math.round(stopLog.sec * 1000), on: stopT > 0 },
+      trail: trail.n, ghost: !!ghost, plays, stageDead, wake: wakeWant, veil: !!(canvas && canvas.hasAttribute('data-veil')), settings: { ...settings }, insets: insetsNow, coach: coachOn, avoid: avoidNow, pull: settings.pull,
       replay: { on: rp.on, speed: rp.speed, pick: rp.pick, recording: rp.recording, t: +rp.t.toFixed(2), total: +rp.total.toFixed(2),
         video: rp.video ? { size: rp.video.blob.size, type: rp.video.type, name: rp.video.name, ms: Math.round(rp.video.ms) } : null },
       shot: !!shot, cleanShot: cleanOk, card: !!(share && share.blob), frames, perf: { ms: +perf.ms.toFixed(3), max: +perf.max.toFixed(2), steps: perf.steps, draws: perf.draws, shot: +perf.shot.toFixed(1), clean: +perf.clean.toFixed(1), card: +perf.card.toFixed(1), result: Math.round(perf.result), intro: Math.round(perf.intro), slow: perf.slow.slice(), gaps: perf.gaps.slice() },
@@ -1363,6 +1515,7 @@ function installDebug() {
   const run = (n) => {
     for (let i = 0; i < n && phase === 'play'; i++) stepOnce(true);
     if (phase === 'play') { acc = 0; snapPrev(state, prevX, prevY); }
+    stopReq = 0; stopVib = 0;
     flushFrame();
   };
   const toReady = (L) => {
@@ -1390,11 +1543,12 @@ function installDebug() {
         if (phase !== 'ready' && phase !== 'play') break;
         doThrow(e[1], e[2], e[3]);
       }
-      if (phase === 'play') run(C.CONFIG.LIMIT_TICKS);
+      if (phase === 'play') run(LIMIT);
       return sum || snap();
     },
     layout(id) { const L = LAYOUTS.find((l) => l.id === id); if (L) toReady(L); return layout.id; },
     title() { toTitle(); return snap(); },
+    pull(mode) { if (mode === pullMode(mode)) { setSetting('pull', mode); ui.setSettings(settings); } return settings.pull; },
     replay() { replayOpen(); return snap(); },
   };
 }

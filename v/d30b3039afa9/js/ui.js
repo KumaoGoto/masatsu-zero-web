@@ -1,6 +1,6 @@
 import {
-  ITEMS, LIMIT_TENTHS, TRUTH, TAGLINE, MEDAL_NAME, HINTS, FAIL,
-  formatTenths, weightLabel, dayLabel, captionParts, resultHeadlineParts, catLine, randoLine,
+  ITEMS, LIMIT_TENTHS, limitSec, smashLine, smashParts, TRUTH, TAGLINE, MEDAL_NAME, FAIL, HOWTO_PULL, PULLS, PULL_NOTE, pullMode, readyHint,
+  formatTenths, weightLabel, dayLabel, resultHeadlineParts, catLine, randoLine,
   thrownList, medalFor, nextMedalText,
 } from './text.js';
 const TUNE = {
@@ -9,6 +9,7 @@ const TUNE = {
   countDelay: 260,
   countMs: 900,
   swipe: 40,
+  gap: 6,
 };
 const ICONS = {
   pause: '<path d="M9 6.5v11M15 6.5v11"/>',
@@ -44,9 +45,7 @@ const PICS = {
   keshi: '<g transform="rotate(-20 16 16)"><rect x="5" y="11" width="22" height="10" rx="2.5" fill="#fbf8f1"/><path d="M15 11v10H7.5A2.5 2.5 0 0 1 5 18.5v-5A2.5 2.5 0 0 1 7.5 11z" fill="#4f86d9"/><rect x="5" y="11" width="22" height="10" rx="2.5"/></g>',
   kutsu: '<path d="M12.5 4.5h8v12.5l-5.5 8.5a4.4 4.4 0 0 1-7.4-4.8l4.9-7z" fill="#7fb3e6"/><path d="M12.5 8.5h8" />',
   toast: '<path d="M8 26.5V14.6A5.3 5.3 0 0 1 10.3 4.5h11.4A5.3 5.3 0 0 1 24 14.6v11.9a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1z" fill="#e0a45a"/><path d="M11 24.5v-10.8a2.8 2.8 0 0 1-.2-5.2h10.4a2.8 2.8 0 0 1-.2 5.2v10.8z" fill="#f6dcaa" stroke="none"/>',
-  sumaho: '<rect x="10" y="3.5" width="12" height="25" rx="3" fill="#3b4048"/><rect x="12.2" y="6.5" width="7.6" height="17" rx="1.2" fill="#7fd0ff" stroke="none"/>',
   kyoka: '<path d="M8.5 4.5h15a1 1 0 0 1 1 1v22h-15A2.5 2.5 0 0 1 7 25V6a1.5 1.5 0 0 1 1.5-1.5z" fill="#4f86d9"/><path d="M7 25a2.5 2.5 0 0 1 2.5-2.5h15"/><rect x="12" y="8.5" width="8.5" height="4" rx="1" fill="#fbf8f1" stroke="none"/>',
-  suito: '<rect x="11" y="3" width="10" height="4.5" rx="1.5" fill="#3b4048"/><path d="M10 10a2.5 2.5 0 0 1 2.5-2.5h7A2.5 2.5 0 0 1 22 10v16a2.5 2.5 0 0 1-2.5 2.5h-7A2.5 2.5 0 0 1 10 26z" fill="#35b5a6"/><path d="M10 14.5h12"/>',
   rando: '<path d="M5.5 12a6 6 0 0 1 6-6h9a6 6 0 0 1 6 6v13a2.5 2.5 0 0 1-2.5 2.5H8A2.5 2.5 0 0 1 5.5 25z" fill="#e5392f"/><path d="M5.5 16.5h21V12a6 6 0 0 0-6-6h-9a6 6 0 0 0-6 6z" fill="#b82a23"/><rect x="14" y="14" width="4" height="5" rx="1" fill="#ffd23f"/>',
 };
 const pic = (id, cls = '') => `<svg class="pic${cls ? ' ' + cls : ''}" viewBox="0 0 32 32" aria-hidden="true" focusable="false">${PICS[id] || ''}</svg>`;
@@ -77,37 +76,8 @@ const KID = `<g class="kid-b"><ellipse cx="2" cy="4" rx="15" ry="13" class="shad
 const FLOOR = (w, h) => `<rect x="2" y="2" width="${w - 4}" height="${h - 4}" rx="18" fill="url(#nf-floor)"/>
   <path class="planks" d="M2 27H${w - 2}M2 52H${w - 2}M2 77H${w - 2}M2 102H${w - 2}M2 127H${w - 2}M58 2v25M170 27v25M96 52v25M226 77v25M40 102v25M150 127v21M244 2v25"/>
   <path d="M60 2l-40 ${h - 4}h26l40-${h - 4}zM190 2l-40 ${h - 4}h12l40-${h - 4}z" fill="#fff" opacity=".22"/>`;
-const HOWTO = [
-  {
-    h: '引っぱって、離す',
-    p: '物は引いた向きへ飛び、自分は反対へすべる。',
-    svg: `<svg class="ht-svg ht1" viewBox="0 0 280 150" aria-hidden="true" focusable="false">${FLOOR(280, 150)}
-      <path class="trail" d="M140 75H214"/>
-      <g class="aim"><path d="M162 75h50" class="aim-l"/><path d="M205 68l8 7-8 7"/></g>
-      <g class="book"><g transform="translate(110 61) scale(.86)"><g class="pic">${PICS.kyoka}</g></g></g>
-      <g class="kid"><g transform="translate(140 75)">${KID}</g></g>
-      <path class="band" d="M206 118H136"/>
-      <g class="finger"><circle cx="206" cy="118" r="14"/><circle cx="206" cy="118" r="4.5" class="dot"/></g>
-      <g class="lbl l-item"><rect x="26" y="38" width="36" height="24" rx="12"/><text x="44" y="55">物</text></g>
-      <g class="lbl l-kid"><rect x="188" y="38" width="48" height="24" rx="12"/><text x="212" y="55">自分</text></g>
-    </svg>`,
-  },
-  {
-    h: '重い物ほど、大きく動く',
-    p: '止まれないので、進む向きへ投げてブレーキ。',
-    svg: `<svg class="ht-svg ht2" viewBox="0 0 280 150" aria-hidden="true" focusable="false">${FLOOR(280, 150)}
-      <path d="M16 75h248" class="lane"/>
-      <g class="tag"><g transform="translate(14 28) scale(.75)"><g class="pic">${PICS.keshi}</g></g><text x="44" y="45">30g</text></g>
-      <g class="tag"><g transform="translate(14 98) scale(.75)"><g class="pic">${PICS.rando}</g></g><text x="44" y="115">1.4kg</text></g>
-      <path class="tr tr1" d="M150 40H160"/><path class="tr tr2" d="M150 110H236"/>
-      <g class="it it1"><g transform="translate(118 32) scale(.5)"><g class="pic">${PICS.keshi}</g></g></g>
-      <g class="it it2"><g transform="translate(111 99) scale(.72)"><g class="pic">${PICS.rando}</g></g></g>
-      <g class="k1"><g transform="translate(150 40) scale(.78)">${KID}</g></g>
-      <g class="k2"><g transform="translate(150 110) scale(.78)">${KID}</g></g>
-    </svg>`,
-  },
-  {
-    h: '60 秒で遅刻',
+const HOWTO_DOOR = {
+    h: `${limitSec()} 秒で遅刻`,
     p: '玄関のドアから、外へ出よう。',
     svg: `<svg class="ht-svg ht3" viewBox="0 0 280 150" aria-hidden="true" focusable="false">
       <rect x="2" y="2" width="276" height="146" rx="18" fill="#d9ead0"/>
@@ -125,15 +95,54 @@ const HOWTO = [
       <g class="clock" transform="translate(196 75)">
         <circle r="38" class="c-bg"/>
         <circle r="38" class="c-ring" transform="rotate(-90)"/>
-        <text y="6" class="c-num">60</text><text y="24" class="c-u">秒</text>
+        <text y="6" class="c-num">${limitSec()}</text><text y="24" class="c-u">秒</text>
       </g>
     </svg>`,
+  };
+function howtoPull(mode) {
+  const same = mode !== 'opposite', t = same ? HOWTO_PULL.same : HOWTO_PULL.opposite;
+  const lw = (s, px) => Math.round([...s].length * px * 1.04 + 22);
+  const wi = lw(t.item, 14), wk = lw(t.self, 12);
+  const bx = same ? 166 : 128;
+  const svg = `<svg class="ht-svg ht1 ${same ? 'ht1-same' : 'ht1-opp'}" viewBox="0 0 280 150" aria-hidden="true" focusable="false">${FLOOR(280, 150)}
+      <path class="trail" d="M150 60H240"/>
+      <g class="go"><path d="M120 60H68" class="go-l"/><path d="M80 49L68 60L80 71"/></g>
+      <path class="fl-bg" d="M150 112H${same ? 220 : 80}"/><path class="fl" d="M150 112H${same ? 220 : 80}"/>
+      ${same ? '<path class="band-bg" d="M150 60H206"/><path class="band" d="M150 60H206"/>' : ''}
+      <g class="kid"><g transform="translate(150 60)">${KID}</g></g>
+      <g class="book"><g transform="translate(${bx - 13.8} 46.2) scale(.86)"><g class="pic">${PICS.kyoka}</g></g></g>
+      <g class="finger"><circle cx="150" cy="112" r="15"/><circle cx="150" cy="112" r="4.5" class="dot"/></g>
+      <g class="lbl l-item"><rect x="14" y="14" width="${wi}" height="28" rx="14"/><text x="${14 + wi / 2}" y="33">${t.item}</text></g>
+      <g class="lbl l-kid"><rect x="${266 - wk}" y="18" width="${wk}" height="22" rx="11"/><text x="${266 - wk / 2}" y="33.5">${t.self}</text></g>
+    </svg>`;
+  return { h: t.h, p: t.p, svg };
+}
+const weightOf = (id) => { const it = ITEMS.find((x) => x.id === id); return it ? weightLabel(it.g) : ''; };
+const howtoPages = (mode) => [
+  howtoPull(mode),
+  {
+    h: 'ピンにぶつかると、ぶっ飛ぶ',
+    p: '重い物を投げるほど、速くすべる。ピンのかたまりに突っこもう。',
+    svg: `<svg class="ht-svg ht2" viewBox="0 0 280 150" aria-hidden="true" focusable="false">${FLOOR(280, 150)}
+      <path d="M16 75h248" class="lane"/>
+      <g class="tag"><g transform="translate(14 28) scale(.75)"><g class="pic">${PICS.keshi}</g></g><text x="44" y="45">${weightOf('keshi')}</text></g>
+      <g class="tag"><g transform="translate(14 98) scale(.75)"><g class="pic">${PICS.rando}</g></g><text x="44" y="115">${weightOf('rando')}</text></g>
+      <path class="tr tr1" d="M150 40H160"/><path class="tr tr2" d="M150 110H214"/>
+      <circle class="pop" cx="204" cy="110" r="16"/>
+      ${[[208, 110], [220, 103], [220, 117], [232, 96], [232, 110], [232, 124]].map(([x, y], i) => `<g class="pin p${i + 1}"><circle cx="${x}" cy="${y}" r="5.5"/><circle cx="${x - 1.6}" cy="${y - 1.8}" r="1.6" class="hl"/></g>`).join('')}
+      <g class="it it1"><g transform="translate(118 32) scale(.5)"><g class="pic">${PICS.keshi}</g></g></g>
+      <g class="it it2"><g transform="translate(111 99) scale(.72)"><g class="pic">${PICS.rando}</g></g></g>
+      <g class="k1"><g transform="translate(150 40) scale(.78)">${KID}</g></g>
+      <g class="k2"><g transform="translate(150 110) scale(.78)">${KID}</g></g>
+    </svg>`,
   },
+  HOWTO_DOOR,
 ];
-const PULL_FIG = (inv) => `<svg class="pull-fig" viewBox="0 0 64 40" aria-hidden="true" focusable="false">
-  <circle cx="32" cy="20" r="7" class="pf-kid"/>
-  <path class="pf-drag" d="${inv ? 'M38 33h18M50 28l6 5-6 5' : 'M26 33H8M14 28l-6 5 6 5'}"/>
-  <path class="pf-go" d="M41 20h13M49 15l5 5-5 5"/>
+const PULL_FIG = (mode) => `<svg class="pull-fig" viewBox="0 0 64 40" aria-hidden="true" focusable="false">
+  <path class="pf-go" d="M27 13H7M12 8L7 13L12 18"/>
+  ${mode === 'opposite'
+    ? '<circle cx="45" cy="13" r="3.5" class="pf-kid"/><rect class="pf-item" x="33" y="9" width="8" height="8" rx="2"/><path class="pf-band" d="M44 31H22"/><circle class="pf-finger" cx="17.5" cy="31" r="4.5"/>'
+    : '<circle cx="34" cy="13" r="3.5" class="pf-kid"/><path class="pf-sling" d="M36 13H44"/><rect class="pf-item" x="44" y="9" width="8" height="8" rx="2"/><path class="pf-band" d="M22 31H44"/><circle class="pf-finger" cx="48.5" cy="31" r="4.5"/>'}
 </svg>`;
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 function refs(el) { const o = {}; el.querySelectorAll('[data-r]').forEach((e) => { o[e.dataset.r] = e; }); return o; }
@@ -264,29 +273,25 @@ function hudHTML() {
     <div class="hud" data-r="hudBox">
       <button type="button" class="btn-round pe h-pause" data-r="hPause" aria-label="一時停止">${ic('pause')}</button>
       <div class="timer idle" data-r="timer" role="timer" aria-label="のこり時間">
-        <span class="timer-row"><span class="timer-v" data-r="time">60.0</span><span class="timer-u">秒</span></span>
+        <span class="timer-row"><span class="timer-v" data-r="time">${formatTenths(LIMIT_TENTHS)}</span><span class="timer-u">秒</span></span>
         <span class="timer-bar"><span data-r="prog"></span></span>
       </div>
       <button type="button" class="btn-round pe h-retry" data-r="hRetry" aria-label="やりなおす">${ic('retry')}</button>
-      <div class="hud-sub idle" data-r="hudSub">
-        <p class="stats"><span class="st-k">投げた</span><b data-r="throws">0</b><span class="st-dot"></span><span class="st-k">はやさ</span><b data-r="speed">0.00</b><span class="st-k">m/秒</span></p>
-        <p class="idle-l"><span class="idle-t">${esc(HINTS.ready)}</span><span class="idle-s"><span class="idle-dot"></span>${esc(HINTS.readySub)}</span></p>
-        <p class="replay-l">${ic('replay')}<span>リプレイ</span><b data-r="hReplayV"></b></p>
-      </div>
+      <p class="idle-l" data-r="idleL"><span class="idle-dot"></span><span class="idle-t" data-r="idleT">${esc(readyHint(PULLS.def))}</span></p>
+      <p class="replay-l">${ic('replay')}<span>リプレイ</span><b data-r="hReplayV"></b></p>
+      <div class="hint" data-r="hint" role="status"><span class="hint-in" data-r="hintIn">${ic('drag')}<span class="hint-t" data-r="hintText"></span></span></div>
     </div>
   </section>`;
 }
 function barHTML() {
   const slots = ITEMS.map((it, i) => `
     <button type="button" class="slot" data-i="${i}" aria-pressed="false" aria-label="${esc(it.name)} ${weightLabel(it.g)}">
-      <span class="chip"><span class="ring"></span><span class="art">${pic(it.id)}</span><span class="w">${weightLabel(it.g)}</span><span class="nm">${esc(it.name)}</span><span class="cnt"></span></span>
+      <span class="chip"><span class="ring"></span><span class="art">${pic(it.id)}</span><span class="nm">${esc(it.name)}</span><span class="w">${weightLabel(it.g)}</span><span class="cnt"></span></span>
     </button>`).join('');
   return `
   <section class="layer L-bar" data-layer="bar" aria-label="持ち物">
     <div class="bar" data-r="barBox">
-      <div class="hint" data-r="hint" role="status"><span class="hint-in" data-r="hintIn">${ic('drag')}<span class="hint-t" data-r="hintText"></span></span></div>
-      <p class="caption" data-r="caption"><b class="c-name" data-r="cName"></b><span class="c-w" data-r="cW"></span><span class="c-sep">・</span><span class="c-lead" data-r="cLead">いっぱいに引くと</span><b class="c-dv" data-r="cDv"></b></p>
-      <div class="tray pe" role="group" aria-label="投げる持ち物" data-r="tray">${slots}</div>
+      <div class="tray pe${ITEMS.length <= 5 ? ' few' : ''}" role="group" aria-label="投げる持ち物" data-r="tray" style="--n:${ITEMS.length || 1}">${slots}</div>
     </div>
   </section>`;
 }
@@ -326,10 +331,13 @@ function resultHTML() {
           <figure class="r-photo" data-r="rPhoto"></figure>
         </div>
         <div class="r-medal rise" style="--d:2" data-r="rMedal"></div>
-        <div class="r-stats rise" style="--d:3" data-r="rStats"></div>
-        <ul class="r-notes rise" style="--d:4" data-r="rNotes"></ul>
-        <p class="r-thrown rise" style="--d:5" data-r="rThrown"></p>
-        <aside class="truth rise" style="--d:6"><h3 class="truth-h">${ic('sun')}<span>この世界の本当</span></h3><p class="truth-p">${esc(TRUTH)}</p></aside>
+        <div class="r-info rise" style="--d:3">
+          <p class="r-meta" data-r="rMeta"></p>
+          <p class="r-smash" data-r="rSmash"></p>
+          <p class="r-thrown" data-r="rThrown"></p>
+          <p class="r-note" data-r="rNote"></p>
+        </div>
+        <aside class="truth rise" style="--d:4"><h3 class="truth-h">${ic('sun')}<span>この世界の本当</span></h3><p class="truth-p">${esc(TRUTH)}</p></aside>
       </div>
       <div id="web-result" class="web-slot pe"></div>
       <footer class="sheet-foot">
@@ -410,17 +418,18 @@ function settingsHTML() {
       <span class="set-l" id="nf-s-${k}-l">${label}${sub ? `<small>${sub}</small>` : ''}</span>
       <button type="button" class="switch" role="switch" aria-checked="false" aria-labelledby="nf-s-${k}-l" data-r="s_${k}" data-k="${k}"><span class="knob"></span></button>
     </div>`;
+  const def = pullMode(PULLS.def), modes = [def, def === 'same' ? 'opposite' : 'same'];
+  const opt = (m) => `
+          <button type="button" class="opt" role="radio" aria-checked="${m === def}" data-v="${m}">${PULL_FIG(m)}<span class="opt-t"><span class="opt-n">${esc(PULLS[m])}${m === def ? `<small>${esc(PULLS.mark)}</small>` : ''}</span><span class="opt-sub">${phraseHTML(PULL_NOTE[m])}</span></span><span class="opt-mark">${ic('check')}</span></button>`;
   const body = `
     <div class="sheet-scroll set">
-      <div class="set-group">${range('sfx', '効果音', 'sound')}${range('bgm', 'BGM', 'music')}</div>
-      <div class="set-group">${sw('vibe', '振動', 'vibe')}${sw('ghost', 'ゴースト', 'ghost', '自己ベストの自分と一緒にすべる')}</div>
       <div class="set-block">
         <p class="set-cap" id="nf-s-inv-l">引く向き</p>
-        <div class="choice" role="radiogroup" aria-labelledby="nf-s-inv-l" data-r="s_invert">
-          <button type="button" class="opt" role="radio" aria-checked="true" data-v="0">${PULL_FIG(false)}<span class="opt-t">投げる向きへ引く<small>標準</small></span><span class="opt-mark">${ic('check')}</span></button>
-          <button type="button" class="opt" role="radio" aria-checked="false" data-v="1">${PULL_FIG(true)}<span class="opt-t">進む向きへ引く</span><span class="opt-mark">${ic('check')}</span></button>
+        <div class="choice" role="radiogroup" aria-labelledby="nf-s-inv-l" data-r="s_pull">${modes.map(opt).join('')}
         </div>
       </div>
+      <div class="set-group">${range('sfx', '効果音', 'sound')}${range('bgm', 'BGM', 'music')}</div>
+      <div class="set-group">${sw('vibe', '振動', 'vibe')}${sw('ghost', 'ゴースト', 'ghost', '自己ベストの自分と一緒にすべる')}</div>
       <div class="set-block">
         <p class="set-cap" id="nf-s-q-l">${ic('sparkle')}画質</p>
         <div class="seg" role="radiogroup" aria-labelledby="nf-s-q-l" data-r="s_quality">
@@ -435,13 +444,14 @@ function settingsHTML() {
   return modalHTML('settings', '設定', body);
 }
 function howtoHTML() {
-  const pages = HOWTO.map((p, i) => `
-    <div class="ht-page" data-p="${i}" role="group" aria-roledescription="ページ" aria-label="${i + 1} / ${HOWTO.length}">
+  const list = howtoPages(pullMode(PULLS.def));
+  const pages = list.map((p, i) => `
+    <div class="ht-page" data-p="${i}" role="group" aria-roledescription="ページ" aria-label="${i + 1} / ${list.length}">
       <div class="ht-fig">${p.svg}</div>
       <h3 class="ht-h">${esc(p.h)}</h3>
       <p class="ht-p">${phraseHTML(p.p)}</p>
     </div>`).join('');
-  const dots = HOWTO.map((_, i) => `<button type="button" class="dot" data-p="${i}" aria-label="${i + 1} 枚目"></button>`).join('');
+  const dots = list.map((_, i) => `<button type="button" class="dot" data-p="${i}" aria-label="${i + 1} 枚目"></button>`).join('');
   const body = `
     <div class="ht" data-r="ht">
       <div class="ht-pages" data-r="htPages" data-clip>${pages}</div>
@@ -569,11 +579,9 @@ export function createUI(handlers = {}) {
     R.tVer.textContent = t.version ? String(t.version) : '';
     markToday();
   }
-  const hud = { t: -1, th: -1, sp: -1, hot: null, run: null, sec: -1 };
+  const hud = { t: -1, hot: null, run: null, sec: -1 };
   const putTime = digitBox(R.time, 4);
-  const putThrows = digitBox(R.throws, 2);
-  const putSpeed = digitBox(R.speed, 5);
-  putTime('60.0'); putThrows('0'); putSpeed('0.00');
+  putTime(formatTenths(LIMIT_TENTHS));
   function pulse() {
     anim(R.timer, [
       { transform: 'scale(1)' }, { transform: 'scale(1.12)', offset: 0.28 }, { transform: 'scale(.98)', offset: 0.62 }, { transform: 'scale(1)' },
@@ -582,12 +590,12 @@ export function createUI(handlers = {}) {
   function setHud(s) {
     if (!s) return;
     const t = Math.max(0, Math.round(s.tenths) || 0);
-    const hot = s.hot != null ? !!s.hot : t <= 100;
+    const hot = s.hot != null ? !!s.hot : t <= LIMIT_TENTHS / 6;
     const run = s.running == null ? true : !!s.running;
     if (run !== hud.run) {
       hud.run = run;
       R.timer.classList.toggle('idle', !run);
-      R.hudSub.classList.toggle('idle', !run);
+      R.hudBox.classList.toggle('idle', !run);
     }
     if (hot !== hud.hot) { hud.hot = hot; R.timer.classList.toggle('hot', hot); }
     if (t !== hud.t) {
@@ -598,16 +606,8 @@ export function createUI(handlers = {}) {
       if (hot && run && sec !== hud.sec && hud.sec !== -1) pulse();
       hud.sec = sec;
     }
-    const th = s.throws | 0;
-    if (th !== hud.th) {
-      const up = hud.th >= 0 && th > hud.th;
-      hud.th = th;
-      putThrows(String(th));
-      if (up) anim(R.throws, [{ transform: 'translateY(-3px) scale(1.3)' }, { transform: 'none' }], { duration: 260, easing: SPRING });
-    }
-    const sp = Math.round((Number(s.speed) || 0) / 10);
-    if (sp !== hud.sp) { hud.sp = sp; putSpeed((sp / 100).toFixed(2)); }
   }
+  function idleHint(on) { R.idleL.classList.toggle('off', !on); }
   const inv = { counts: [], max: ITEMS.map((it) => it.n), sel: -1, icons: [] };
   function slotLabel(i) {
     const c = inv.counts[i] ?? ITEMS[i].n;
@@ -670,15 +670,6 @@ export function createUI(handlers = {}) {
       }
     }
     if (o.sel != null && o.sel !== inv.sel) markSel(o.sel, inv.sel >= 0 && base === 'play');
-  }
-  let capPrev = {};
-  function setCaption(c = {}) {
-    const p = captionParts(c);
-    if (p.name !== capPrev.name) R.cName.textContent = p.name;
-    if (p.weight !== capPrev.weight) R.cW.textContent = p.weight;
-    if (p.dv !== capPrev.dv) R.cDv.textContent = p.dv;
-    if (p.name !== capPrev.name && capPrev.name !== undefined) anim(R.caption, [{ opacity: 0.4, transform: 'translateY(3px)' }, { opacity: 1, transform: 'none' }], { duration: 200, easing: 'ease-out' });
-    capPrev = p;
   }
   let hintTimer = 0;
   let hintNow = '';
@@ -756,17 +747,19 @@ export function createUI(handlers = {}) {
       R.rMedal.hidden = false;
       R.rMedal.innerHTML = `${medalSVG(medal, 'big')}<div class="m-txt"><p class="m-name">${medal ? MEDAL_NAME[medal] + 'メダル' : 'メダルまで、もう少し'}</p>${next ? `<p class="m-next">${esc(next)}</p>` : '<p class="m-next">いちばん上のメダル</p>'}</div>`;
     } else { R.rMedal.hidden = true; R.rMedal.innerHTML = ''; }
-    const best = r.best != null ? r.best : (ok && r.newBest ? r.tenths : null);
-    R.rStats.innerHTML = `
-      <div class="st"><span class="st-l">${ic('throw')}投げた数</span><span class="st-v">${r.throws | 0}</span></div>
-      <div class="st"><span class="st-l">${ic('sparkle')}自己ベスト</span><span class="st-v">${best != null ? `${formatTenths(best)}<small> 秒</small>` : '<span class="st-none">—</span>'}${ok && r.newBest ? '<em class="st-up">更新</em>' : ''}</span></div>`;
-    const notes = [];
-    const cl = catLine(r);
-    if (cl) notes.push(`<li>${ic('cat')}<span>${esc(cl)}</span></li>`);
-    const rl = randoLine(r);
-    if (rl) notes.push(`<li>${ic('rando')}<span>${esc(rl)}</span></li>`);
-    R.rNotes.innerHTML = notes.join('');
-    R.rNotes.hidden = !notes.length;
+    const best = r.best != null ? r.best : null;
+    const meta = [`<span class="mt"><span class="mt-l">投げた数</span><b>${r.throws | 0}</b></span>`];
+    if (best != null && !(ok && r.newBest)) meta.push(`<span class="mt"><span class="mt-l">自己ベスト</span><b>${formatTenths(best)}<small> 秒</small></b></span>`);
+    R.rMeta.innerHTML = meta.join('<span class="mt-dot"></span>');
+    const cl = catLine(r), rl = randoLine(r);
+    const catOut = typeof r.catOut === 'number' ? r.catOut > 0 : !!r.catOut;
+    const note = cl && catOut ? ['cat', cl] : rl ? ['rando', rl] : cl && (Number(r.catDist) || 0) >= 0.05 ? ['cat', cl] : null;
+    R.rNote.innerHTML = note ? `${ic(note[0])}<span>${esc(note[1])}</span>` : '';
+    R.rNote.hidden = !note;
+    const sp = smashParts(r);
+    R.rSmash.innerHTML = sp ? `${ic('throw')}<span class="sm-t"><span class="sm-a">${esc(sp[0])}</span>${sp[1] ? `<span class="sm-dot">・</span><span class="sm-b">${esc(sp[1])}</span>` : ''}</span>` : '';
+    R.rSmash.setAttribute('aria-label', smashLine(r) || '');
+    R.rSmash.hidden = !sp;
     const tl = thrownList(r.thrown);
     R.rThrown.innerHTML = `<span class="lbl">投げた物：</span><span class="val">${esc(tl.replace(/^投げた物：/, ''))}</span>`;
     R.rThrown.setAttribute('aria-label', tl);
@@ -790,7 +783,19 @@ export function createUI(handlers = {}) {
     };
     countRaf = requestAnimationFrame(step);
   }
-  let settings = { sfx: 0.8, bgm: 0.6, vibe: true, ghost: true, invert: false, quality: 'auto' };
+  let settings = { sfx: 0.8, bgm: 0.6, vibe: true, ghost: true, pull: pullMode(PULLS.def), quality: 'auto' };
+  let pullShown = pullMode(PULLS.def);
+  function paintPull() {
+    const mode = pullMode(settings.pull);
+    setRadio(R.s_pull, mode);
+    if (mode === pullShown) return;
+    pullShown = mode;
+    R.idleT.textContent = readyHint(mode);
+    const pg = htPages[0], p = howtoPull(mode);
+    pg.querySelector('.ht-fig').innerHTML = p.svg;
+    pg.querySelector('.ht-h').textContent = p.h;
+    pg.querySelector('.ht-p').innerHTML = phraseHTML(p.p);
+  }
   function paintRange(el) { el.style.setProperty('--v', el.value + '%'); }
   function setSwitch(el, on) { el.setAttribute('aria-checked', on ? 'true' : 'false'); }
   function setRadio(group, v) {
@@ -804,8 +809,8 @@ export function createUI(handlers = {}) {
     for (const k of ['sfx', 'bgm']) { const el = R['s_' + k]; el.value = String(Math.round((Number(settings[k]) || 0) * 100)); paintRange(el); }
     setSwitch(R.s_vibe, !!settings.vibe);
     setSwitch(R.s_ghost, !!settings.ghost);
-    setRadio(R.s_invert, settings.invert ? '1' : '0');
     setRadio(R.s_quality, settings.quality === 'high' || settings.quality === 'low' ? settings.quality : 'auto');
+    paintPull();
   }
   for (const k of ['sfx', 'bgm']) {
     const el = R['s_' + k];
@@ -827,7 +832,7 @@ export function createUI(handlers = {}) {
       onPick(nb.dataset.v); nb.focus();
     });
   }
-  radioGroup(R.s_invert, (v) => { settings.invert = v === '1'; setRadio(R.s_invert, v); call('onSetting', 'invert', settings.invert); });
+  radioGroup(R.s_pull, (v) => { settings.pull = pullMode(v); paintPull(); call('onSetting', 'pull', settings.pull); });
   radioGroup(R.s_quality, (v) => { settings.quality = v; setRadio(R.s_quality, v); call('onSetting', 'quality', v); });
   function setReplay(o = {}) {
     if (o.mode) { layers.replay.dataset.mode = o.mode; root.dataset.rp = o.mode; }
@@ -936,7 +941,7 @@ export function createUI(handlers = {}) {
   root.querySelectorAll('[data-close]').forEach((el) => el.addEventListener('click', () => closeOverlay()));
   window.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && stack.length) { e.preventDefault(); e.stopImmediatePropagation(); closeOverlay(); return; }
-    if (base === 'play' && !stack.length && !e.repeat && !e.metaKey && !e.ctrlKey && !e.altKey && /^[1-7]$/.test(e.key)) {
+    if (base === 'play' && !stack.length && !e.repeat && !e.metaKey && !e.ctrlKey && !e.altKey && /^[1-9]$/.test(e.key) && +e.key <= slots.length) {
       const t = e.target;
       if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA')) return;
       pick(+e.key - 1);
@@ -952,16 +957,17 @@ export function createUI(handlers = {}) {
       if (tt && tb) return { top: Math.round(tt.offsetTop + tt.offsetHeight), bottom: Math.round(Math.max(0, h - tb.offsetTop)) };
     }
     if (name === 'result') return { top: 0, bottom: Math.round(Math.max(0, h - R.resSheet.offsetTop)) };
-    if (name === 'replay') return { top: Math.round(R.hudBox.offsetTop + R.hudBox.offsetHeight + 8), bottom: Math.round(Math.max(0, h - R.rpBar.offsetTop) + 8) };
-    const top = R.hudBox.offsetTop + R.hudBox.offsetHeight + 8;
-    const bottom = Math.max(0, h - R.caption.offsetTop - R.barBox.offsetTop) + 8;
+    if (name === 'replay') return { top: Math.round(R.hudBox.offsetTop + replayL.offsetTop + replayL.offsetHeight + 8), bottom: Math.round(Math.max(0, h - R.rpBar.offsetTop) + 8) };
+    const top = R.hudBox.offsetTop + R.hudBox.offsetHeight + TUNE.gap;
+    const bottom = Math.max(0, h - R.barBox.offsetTop - R.tray.offsetTop) + TUNE.gap;
     return { top: Math.round(top), bottom: Math.round(bottom) };
   }
+  const replayL = root.querySelector('.replay-l');
   setSettings({});
-  setInventory({ counts: ITEMS.map((it) => it.n), sel: 4 });
+  setInventory({ counts: ITEMS.map((it) => it.n), sel: Math.max(0, ITEMS.findIndex((it) => it.id === 'kyoka')) });
   screen('title');
   return {
-    screen, setTitle, setHud, setInventory, setCaption, hint, toast, showResult, setSettings, setLayouts, insets, quiet, setReplay,
+    screen, setTitle, setHud, setInventory, idleHint, hint, toast, showResult, setSettings, setLayouts, insets, quiet, setReplay,
     get result() { return lastResult; },
   };
 }

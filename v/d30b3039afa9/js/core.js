@@ -1,28 +1,29 @@
 (function (root) {
   'use strict';
   const CONFIG = {
-    VER: 1,
+    VER: 3,
     HZ: 240,
-    LIMIT_TICKS: 14400,
+    LIMIT_TICKS: 7200,
     DIRS: 256,
     POWERS: 100,
     MIN_POWER: 8,
-    W_MAX: 62500,
+    W_MAX: 160000,
     BODY_G: 20000,
     PLAYER_R: 240,
-    FIRST_ITEM: 4,
+    FIRST_ITEM: 3,
     THROW_GAP: 30,
     E_WALL: 50,
-    E_BODY: 70,
-    E_ITEM_WALL: 10,
-    E_ITEM_BODY: 20,
+    E_BODY: 85,
+    E_ITEM_WALL: 30,
+    E_ITEM_BODY: 50,
     GOAL_PAD: 50,
     OUT_X: 1000,
     OUT_Y: 1600,
     STUCK_MM_S: 4,
-    V_CAP: 131072,
-    SUB_MAX: 8,
+    V_CAP: 262144,
+    SUB_MAX: 16,
     FIX_ITERS: 8,
+    PREDICT_TICKS: 480,
     HIT_MIN: 60,
     CAT_MIN: 500,
     MAX_HITS: 8,
@@ -39,14 +40,12 @@
     { id: 'keshi', name: '消しゴム', g: 30, n: 1, r: 60 },
     { id: 'kutsu', name: '靴下', g: 60, n: 2, r: 70 },
     { id: 'toast', name: 'トースト', g: 80, n: 1, r: 80 },
-    { id: 'sumaho', name: 'スマホ', g: 200, n: 1, r: 70 },
     { id: 'kyoka', name: '教科書', g: 500, n: 2, r: 110 },
-    { id: 'suito', name: '水筒', g: 800, n: 1, r: 80 },
     { id: 'rando', name: 'ランドセル', g: 1400, n: 1, r: 150 },
   ];
   for (const it of ITEMS) Object.freeze(it);
   Object.freeze(ITEMS);
-  const RANDO = 6;
+  const RANDO = ITEMS.findIndex((it) => it.id === 'rando');
   const UM = 1000;
   const NS = 16384;
   const NS2 = NS * NS;
@@ -166,7 +165,12 @@
   let CAP = 0;
   let X, Y, VX, VY, RR, RC, G;
   let KD, AL, IT, LIVE, GB;
+  let SLP, MV, SK, POS, AWK, AWK2;
+  let NA = 0;
+  let NSUB = 1;
+  const CATL = new Int32Array(8); let NCAT = 0;
   let N = 0, NL = 0;
+  let RMAX2 = 0;
   let wTick = 0, wOut = 0, wLeft = 0, wCatUm = 0, wCatOut = 0;
   let REC = false, STAT = false;
   const stats = { saves: 0 };
@@ -174,7 +178,10 @@
     const f = (old) => { const a = new Float64Array(n); if (old) a.set(old); return a; };
     const b = (old) => { const a = new Uint8Array(n); if (old) a.set(old); return a; };
     X = f(X); Y = f(Y); VX = f(VX); VY = f(VY); RR = f(RR); RC = f(RC); G = f(G);
-    KD = b(KD); AL = b(AL);
+    KD = b(KD); AL = b(AL); SLP = b(SLP); MV = b(MV); SK = f(SK);
+    const ps = new Int32Array(n); if (POS) ps.set(POS); POS = ps;
+    const aw = new Int32Array(n); if (AWK) aw.set(AWK); AWK = aw;
+    AWK2 = new Int32Array(n);
     const it = new Int8Array(n); if (IT) it.set(IT); IT = it;
     const lv = new Int32Array(n); if (LIVE) lv.set(LIVE); LIVE = lv;
     const gb = new Int32Array(n); if (GB) gb.set(GB); GB = gb;
@@ -184,11 +191,9 @@
   let curLayout = null, GEO = null;
   let gNR = 0, gRX1, gRY1, gRX2, gRY2, gCX, gCY, gCR, gCS, gCL, gGW = 0, gGH = 0, gGM = 0;
   let GOAL_Y = 0, OUT_X1 = 0, OUT_X2 = 0, OUT_Y1 = 0, OUT_Y2 = 0;
+  const GR1 = CONFIG.GRID_R[0] * UM, GR2 = CONFIG.GRID_R[1] * UM, GR3 = CONFIG.GRID_R[2] * UM;
   function gridBase(r) {
-    const gr = CONFIG.GRID_R;
-    let k = 0;
-    while (k < gr.length - 1 && r > gr[k] * UM) k++;
-    return k * GEO.cells1;
+    return (r > GR1 ? r > GR2 ? r > GR3 ? 3 : 2 : 1 : 0) * GEO.cells1;
   }
   function bind(layout) {
     const g = geomOf(layout);
@@ -224,17 +229,26 @@
     if (state.layout !== curLayout) bind(state.layout);
     const bs = state.bodies, n = bs.length;
     if (n + ITEMS.length + 4 > CAP) grow(n + 32);
-    N = n; NL = 0;
+    const x = X, y = Y, vx = VX, vy = VY, g = G, rr = RR, rc = RC, gb = GB, it = IT, kd = KD, al = AL, lv = LIVE, slp = SLP, mv = MV, aw = AWK, sk = SK, c1 = GEO.cells1;
+    let nl = 0, rmax2 = 0, ncat = 0;
+    N = n;
     for (let i = 0; i < n; i++) {
       const b = bs[i];
-      if (!b.alive) { AL[i] = 0; continue; }
-      AL[i] = 1; LIVE[NL++] = i;
-      X[i] = b.x; Y[i] = b.y; VX[i] = b.vx; VY[i] = b.vy; G[i] = b.g;
-      const r = b.r; RR[i] = r; RC[i] = Math.trunc(r / 2) + 2; GB[i] = gridBase(r);
-      IT[i] = b.item;
-      KD[i] = i === 0 ? K_PLAYER : b.item >= 0 ? K_ITEM : b.kind === 'cat' ? K_CAT : K_OTHER;
+      if (!b.alive) { al[i] = 0; continue; }
+      al[i] = 1; lv[nl] = i; aw[nl] = i; slp[i] = 0; mv[i] = 0;
+      const r = b.r, by = b.y;
+      x[i] = b.x; y[i] = by; vx[i] = b.vx; vy[i] = b.vy; g[i] = b.g;
+      rr[i] = r; rc[i] = Math.trunc(r / 2) + 2; gb[i] = (r > GR1 ? r > GR2 ? r > GR3 ? 3 : 2 : 1 : 0) * c1;
+      sk[nl] = by - r; nl++;
+      if (2 * r > rmax2) rmax2 = 2 * r;
+      const item = b.item, k = i === 0 ? K_PLAYER : item >= 0 ? K_ITEM : b.kind === 'cat' ? K_CAT : K_OTHER;
+      it[i] = item; kd[i] = k;
+      if (k === K_CAT && ncat < CATL.length) CATL[ncat++] = i;
     }
+    NL = nl; NA = nl; RMAX2 = rmax2; NCAT = ncat;
     GOAL_Y = GEO.goalY + RR[0];
+    sortLive();
+    subAll();
     wTick = state.tick; wOut = 0; wCatUm = state.catUm; wCatOut = state.catOut;
     const inv = state.inv; wLeft = 0;
     for (let i = 0; i < inv.length; i++) wLeft += inv[i];
@@ -325,7 +339,7 @@
         if (pen > bestPen) { bestPen = pen; best = s; }
       }
       if (best < 0) break;
-      pushed = true;
+      pushed = true; MV[i] = 1;
       let nx = 0, ny = 0, px = x, py = y;
       if (best < nR) {
         const x1 = RX1[best], x2 = RX2[best], y1 = RY1[best], y2 = RY2[best];
@@ -381,6 +395,9 @@
     let d = isqrt(d2);
     if (d === 0) { dx = 1; dy = 0; d = 1; }
     const pen = rr - d, mi = G[i], mj = G[j], M = mi + mj;
+    MV[i] = 1; MV[j] = 1;
+    if (SLP[i] !== 0) { SLP[i] = 0; AWK[NA++] = i; }
+    if (SLP[j] !== 0) { SLP[j] = 0; AWK[NA++] = j; }
     const sx = Math.trunc(dx * pen / d) + (dx > 0 ? 1 : dx < 0 ? -1 : 0);
     const sy = Math.trunc(dy * pen / d) + (dy > 0 ? 1 : dy < 0 ? -1 : 0);
     let ax = Math.trunc(sx * mj / M), ay = Math.trunc(sy * mj / M);
@@ -414,76 +431,179 @@
     if (REC) touch(key);
     fixStatic(i, xi, yi); fixStatic(j, xj, yj);
   }
-  function tick() {
-    const lx = X, ly = Y, lvx = VX, lvy = VY, lr = RR, lv = LIVE, nl = NL;
+  function needSub(i, n) {
+    const vx = VX[i], vy = VY[i];
+    if (vx === 0 && vy === 0) return n;
+    const q = 4 * (vx * vx + vy * vy), r = RR[i], r2 = r * r;
+    while (n < SUB_MAX && q > n * n * r2) n++;
+    return n;
+  }
+  function subAll() {
     let n = 1;
-    for (let a = 0; a < nl; a++) {
-      const i = lv[a], vx = lvx[i], vy = lvy[i];
-      if (vx === 0 && vy === 0) continue;
-      const v2 = vx * vx + vy * vy, r = lr[i], q = 4 * v2, r2 = r * r;
-      while (n < SUB_MAX && q > n * n * r2) n++;
-      if (STAT && KD[i] === K_CAT) wCatUm += isqrt(v2);
+    for (let q = 0; q < NA; q++) n = needSub(AWK[q], n);
+    NSUB = n;
+  }
+  function sortLive() {
+    const lv = LIVE, sk = SK, pos = POS, nl = NL;
+    for (let a = 1; a < nl; a++) {
+      const i = lv[a], key = sk[a];
+      let b = a - 1;
+      while (b >= 0) {
+        const kj = sk[b];
+        if (kj < key || (kj === key && lv[b] < i)) break;
+        lv[b + 1] = lv[b]; sk[b + 1] = kj; b--;
+      }
+      lv[b + 1] = i; sk[b + 1] = key;
+    }
+    for (let a = 0; a < nl; a++) pos[lv[a]] = a;
+  }
+  function tick() {
+    const lx = X, ly = Y, lvx = VX, lvy = VY, lr = RR, lv = LIVE, slp = SLP, mv = MV, sk = SK, pos = POS, aw = AWK, kd = KD, rc = RC;
+    const n = NSUB;
+    if (STAT) for (let q = 0; q < NCAT; q++) {
+      const i = CATL[q], vx = lvx[i], vy = lvy[i];
+      if (AL[i] !== 0 && (vx !== 0 || vy !== 0)) wCatUm += isqrt(vx * vx + vy * vy);
     }
     if (REC) { const t = PT; PT = CT; CT = t; NPT = NCT; NCT = 0; NE = 0; NH = 0; }
     const cs = gCS, gb = GB, gw = gGW, gh = gGH, gm = gGM;
+    const ox1 = OUT_X1, ox2 = OUT_X2, oy1 = OUT_Y1, oy2 = OUT_Y2;
+    let w = 0, dead = false, nn = 1, fused = false;
     for (let k = 0; k < n; k++) {
-      for (let a = 0; a < nl; a++) {
-        const i = lv[a], vx = lvx[i], vy = lvy[i], x0 = lx[i], y0 = ly[i];
-        let x = x0, y = y0;
-        if (vx !== 0 || vy !== 0) {
-          let dx = vx, dy = vy;
-          if (n !== 1) {
-            dx = Math.trunc(vx * (k + 1) / n) - Math.trunc(vx * k / n);
-            dy = Math.trunc(vy * (k + 1) / n) - Math.trunc(vy * k / n);
-            const c = RC[i];
-            if (dx > c) dx = c; else if (dx < -c) dx = -c;
-            if (dy > c) dy = c; else if (dy < -c) dy = -c;
+      const nl = NL, all = NA * 2 >= nl;
+      let bad = false, any = all;
+      if (all) {
+        for (let a = 0; a < nl; a++) {
+          const i = lv[a];
+          if (slp[i] === 0) {
+            const vx = lvx[i], vy = lvy[i], x0 = lx[i], y0 = ly[i];
+            let x = x0, y = y0;
+            if (vx !== 0 || vy !== 0) {
+              let dx = vx, dy = vy;
+              if (n !== 1) {
+                dx = Math.trunc(vx * (k + 1) / n) - Math.trunc(vx * k / n);
+                dy = Math.trunc(vy * (k + 1) / n) - Math.trunc(vy * k / n);
+                const c = rc[i];
+                if (dx > c) dx = c; else if (dx < -c) dx = -c;
+                if (dy > c) dy = c; else if (dy < -c) dy = -c;
+              }
+              x += dx; y += dy;
+              lx[i] = x; ly[i] = y; mv[i] = 1;
+            }
+            const gx = (x + gm) >> GSH, gy = (y + gm) >> GSH;
+            if (gx >= 0 && gx < gw && gy >= 0 && gy < gh) {
+              const c = gb[i] + gy * gw + gx;
+              if (cs[c] !== cs[c + 1]) fixStatic(i, x0, y0);
+            }
           }
-          x += dx; y += dy;
-          lx[i] = x; ly[i] = y;
+          const key = ly[i] - lr[i];
+          let b = a - 1;
+          while (b >= 0) {
+            const kj = sk[b];
+            if (kj < key || (kj === key && lv[b] < i)) break;
+            lv[b + 1] = lv[b]; sk[b + 1] = kj; b--; bad = true;
+          }
+          b++;
+          lv[b] = i; sk[b] = key;
         }
-        const gx = (x + gm) >> GSH, gy = (y + gm) >> GSH;
-        if (gx >= 0 && gx < gw && gy >= 0 && gy < gh) {
-          const c = gb[i] + gy * gw + gx;
-          if (cs[c] !== cs[c + 1]) fixStatic(i, x0, y0);
+        if (bad) for (let a = 0; a < nl; a++) pos[lv[a]] = a;
+      } else {
+        for (let q = 0; q < NA; q++) {
+          const i = aw[q], vx = lvx[i], vy = lvy[i], x0 = lx[i], y0 = ly[i];
+          let x = x0, y = y0;
+          if (vx !== 0 || vy !== 0) {
+            let dx = vx, dy = vy;
+            if (n !== 1) {
+              dx = Math.trunc(vx * (k + 1) / n) - Math.trunc(vx * k / n);
+              dy = Math.trunc(vy * (k + 1) / n) - Math.trunc(vy * k / n);
+              const c = rc[i];
+              if (dx > c) dx = c; else if (dx < -c) dx = -c;
+              if (dy > c) dy = c; else if (dy < -c) dy = -c;
+            }
+            x += dx; y += dy;
+            lx[i] = x; ly[i] = y; mv[i] = 1;
+          }
+          const gx = (x + gm) >> GSH, gy = (y + gm) >> GSH;
+          if (gx >= 0 && gx < gw && gy >= 0 && gy < gh) {
+            const c = gb[i] + gy * gw + gx;
+            if (cs[c] !== cs[c + 1]) fixStatic(i, x0, y0);
+          }
+        }
+        for (let q = 0; q < NA; q++) { const i = aw[q]; sk[pos[i]] = ly[i] - lr[i]; }
+        for (let q = 0; q < NA && !bad; q++) {
+          const i = aw[q], p = pos[i], key = sk[p];
+          if (p > 0) { const kj = sk[p - 1]; if (kj > key || (kj === key && lv[p - 1] > i)) bad = true; }
+          if (p + 1 < nl) { const kj = sk[p + 1]; if (kj < key || (kj === key && lv[p + 1] < i)) bad = true; }
+        }
+        if (bad) sortLive();
+        for (let q = 0; q < NA && !any; q++) {
+          const i = aw[q], p = pos[i], ri = lr[i], xi = lx[i], yi = ly[i], bottom = yi + ri, reach = sk[p] - RMAX2;
+          for (let b = p + 1; b < nl; b++) {
+            if (sk[b] >= bottom) break;
+            const j = lv[b], rr = ri + lr[j], dx = lx[j] - xi;
+            if (dx >= rr || dx <= -rr) continue;
+            const dy = ly[j] - yi;
+            if (dy < rr && dy > -rr && dx * dx + dy * dy < rr * rr) { any = true; break; }
+          }
+          for (let b = p - 1; b >= 0 && !any && sk[b] > reach; b--) {
+            const j = lv[b];
+            if (slp[j] === 0) continue;
+            const rr = ri + lr[j], dx = lx[j] - xi;
+            if (dx >= rr || dx <= -rr) continue;
+            const dy = ly[j] - yi;
+            if (dy < rr && dy > -rr && dx * dx + dy * dy < rr * rr) any = true;
+          }
         }
       }
-      for (let a = 1; a < nl; a++) {
-        const i = lv[a], key = lx[i] - lr[i];
-        let b = a - 1;
-        while (b >= 0) {
-          const j = lv[b], kj = lx[j] - lr[j];
-          if (kj < key || (kj === key && j < i)) break;
-          lv[b + 1] = j; b--;
-        }
-        lv[b + 1] = i;
-      }
+      if (!any) continue;
+      fused = all && k === n - 1;
+      const aw2 = AWK2;
       for (let a = 0; a < nl; a++) {
         const i = lv[a], ri = lr[i];
-        let xi = lx[i], yi = ly[i], right = xi + ri;
+        let si = slp[i], xi = lx[i], yi = ly[i], bottom = yi + ri;
         for (let b = a + 1; b < nl; b++) {
-          const j = lv[b], xj = lx[j], rj = lr[j];
-          if (xj - rj >= right) break;
-          const rr = ri + rj, dy = ly[j] - yi;
-          if (dy >= rr || dy <= -rr) continue;
-          const dx = xj - xi, d2 = dx * dx + dy * dy;
+          if (sk[b] >= bottom) break;
+          const j = lv[b];
+          if (si !== 0 && slp[j] !== 0) continue;
+          const rr = ri + lr[j], dx = lx[j] - xi, dy = ly[j] - yi, d2 = dx * dx + dy * dy;
           if (d2 >= rr * rr) continue;
           if (i < j) hitPair(i, j, dx, dy, d2, rr); else hitPair(j, i, -dx, -dy, d2, rr);
-          xi = lx[i]; yi = ly[i]; right = xi + ri;
+          si = 0; xi = lx[i]; yi = ly[i]; bottom = yi + ri;
+        }
+        if (fused && slp[i] === 0) {
+          if (i !== 0 && (yi > oy2 || xi < ox1 || xi > ox2 || yi < oy1)) {
+            AL[i] = 0; dead = true;
+            if (kd[i] === K_CAT) wCatOut++;
+            if (REC) emit(T_OUT, i, 0);
+          } else if (mv[i] !== 0) {
+            mv[i] = 0; aw2[w++] = i;
+            const vx = lvx[i], vy = lvy[i];
+            if (vx !== 0 || vy !== 0) { const q4 = 4 * (vx * vx + vy * vy), r2 = ri * ri; while (nn < SUB_MAX && q4 > nn * nn * r2) nn++; }
+          } else slp[i] = 1;
         }
       }
     }
-    const ox1 = OUT_X1, ox2 = OUT_X2, oy1 = OUT_Y1, oy2 = OUT_Y2;
-    let w = 0;
-    for (let a = 0; a < nl; a++) {
-      const i = lv[a], x = lx[i], y = ly[i];
-      if (i !== 0 && (y > oy2 || x < ox1 || x > ox2 || y < oy1)) {
-        AL[i] = 0;
-        if (KD[i] === K_CAT) wCatOut++;
-        if (REC) emit(T_OUT, i, 0);
-      } else lv[w++] = i;
+    if (fused) { AWK = AWK2; AWK2 = aw; }
+    else {
+      for (let q = 0; q < NA; q++) {
+        const i = aw[q], x = lx[i], y = ly[i];
+        if (i !== 0 && (y > oy2 || x < ox1 || x > ox2 || y < oy1)) {
+          AL[i] = 0; dead = true;
+          if (kd[i] === K_CAT) wCatOut++;
+          if (REC) emit(T_OUT, i, 0);
+        } else if (mv[i] !== 0) {
+          mv[i] = 0; aw[w++] = i;
+          const vx = lvx[i], vy = lvy[i];
+          if (vx !== 0 || vy !== 0) { const q4 = 4 * (vx * vx + vy * vy), r = lr[i], r2 = r * r; while (nn < SUB_MAX && q4 > nn * nn * r2) nn++; }
+        } else slp[i] = 1;
+      }
     }
-    NL = w;
+    NA = w; NSUB = nn;
+    if (dead) {
+      const nl = NL;
+      let m = 0;
+      for (let a = 0; a < nl; a++) { const i = lv[a]; if (AL[i] !== 0) { lv[m] = i; sk[m] = sk[a]; pos[i] = m; m++; } }
+      NL = m;
+    }
     wTick++;
     if (ly[0] > GOAL_Y) wOut = 1;
     else if (wTick >= LIMIT) wOut = 2;
@@ -497,11 +617,14 @@
     let vx = VX[0] - Math.trunc(g * wx / M), vy = VY[0] - Math.trunc(g * wy / M);
     vx = vx > V_CAP ? V_CAP : vx < -V_CAP ? -V_CAP : vx;
     vy = vy > V_CAP ? V_CAP : vy < -V_CAP ? -V_CAP : vy;
-    VX[0] = vx; VY[0] = vy; G[0] = M - g;
+    VX[0] = vx; VY[0] = vy; G[0] = M - g; MV[0] = 1;
+    if (SLP[0] !== 0) { SLP[0] = 0; AWK[NA++] = 0; }
     const i = N++;
     const r = def.r * UM;
-    AL[i] = 1; LIVE[NL++] = i; KD[i] = K_ITEM; IT[i] = item;
+    AL[i] = 1; KD[i] = K_ITEM; IT[i] = item; SLP[i] = 0; MV[i] = 1;
+    POS[i] = NL; LIVE[NL++] = i; AWK[NA++] = i;
     RR[i] = r; RC[i] = Math.trunc(r / 2) + 2; GB[i] = gridBase(r); G[i] = g;
+    if (2 * r > RMAX2) RMAX2 = 2 * r;
     const off = RR[0] + r + CONFIG.THROW_GAP * UM;
     const tx = Math.trunc(off * ux / NS), ty = Math.trunc(off * uy / NS);
     let m = 1;
@@ -515,10 +638,12 @@
       fixStatic(i, x0, y0);
     }
     REC = rec;
+    SK[POS[i]] = Y[i] - r;
     vx += wx; vy += wy;
     VX[i] = vx > V_CAP ? V_CAP : vx < -V_CAP ? -V_CAP : vx;
     VY[i] = vy > V_CAP ? V_CAP : vy < -V_CAP ? -V_CAP : vy;
     wLeft--;
+    subAll();
     return i;
   }
   function mkBody(id, kind, item, x, y, vx, vy, r, g) { return { id, kind, item, x, y, vx, vy, r, g, alive: true }; }

@@ -1,4 +1,11 @@
-export const LIMIT_TENTHS = 600;
+export let LIMIT_TENTHS = 600;
+export function useLimit(config) {
+  const t = config && Number.isInteger(config.LIMIT_TICKS) && config.LIMIT_TICKS > 0 ? config.LIMIT_TICKS : 0;
+  if (t) LIMIT_TENTHS = Math.round(t / 24);
+  return LIMIT_TENTHS;
+}
+useLimit(typeof globalThis !== 'undefined' && globalThis.NFCore ? globalThis.NFCore.CONFIG : null);
+export function limitSec() { return Math.round(LIMIT_TENTHS / 10); }
 export const HASHTAG = '#摩擦ゼロの朝';
 export const TITLE = '摩擦ゼロの朝';
 export const TAGLINE = 'ある朝、世界から摩擦が消えた。';
@@ -6,21 +13,30 @@ export const TRUTH = '歩けるのは、足と床のあいだに摩擦がある�
 export const HINTS = {
   first: '下で物を選んで、画面を指で引っぱって離す',
   after: 'すべって止まれない。また投げて、向きを変えよう',
-  ready: '物を選んで、画面を引っぱって離す',
-  readySub: '投げたらスタート',
+  ready: '物を引っぱって離すと、反対へ飛ぶ',
+  readyOpp: '飛ばしたい向きへ引っぱって離す',
 };
-export const COACH = { item: '物が飛ぶ', self: '自分がすべる' };
+export const PULLS = { same: '投げる向きと逆に引く', opposite: '投げる向きへ引く', mark: '標準', def: 'same' };
+export const PULL_NOTE = { same: '物は反対へ飛び、自分は引いた向きへすべる', opposite: '物は引いた向きへ飛び、自分は反対へすべる' };
+export function pullMode(v) { return v === 'same' || v === 'opposite' ? v : PULLS.def; }
+export function readyHint(mode) { return pullMode(mode) === 'same' ? HINTS.ready : HINTS.readyOpp; }
+export const COACH = {
+  same: { item: '物は反対へ飛ぶ', self: '反動で 自分は引いた向きへ' },
+  opposite: { item: '物は引いた向きへ飛ぶ', self: '反動で 自分は反対へ' },
+};
+export const HOWTO_PULL = {
+  same: { h: '物を引っぱって、離す', p: '物は引いた反対へ飛ぶ。その反動で、自分は引いた向きへすべる。', item: '物は反対へ', self: '反動で' },
+  opposite: { h: '飛ばしたい向きへ、引っぱって離す', p: '物は引いた向きへ飛ぶ。その反動で、自分は反対へすべる。', item: '物は引いた向きへ', self: '反動で' },
+};
 export const FAIL = { title: 'この端末では絵を出せませんでした', sub: 'ブラウザを新しくするか、ほかの端末で開いてみてください。', button: '読み直す' };
-export const ITEMS = [
-  { id: 'keshi', name: '消しゴム', g: 30, n: 1 },
-  { id: 'kutsu', name: '靴下', g: 60, n: 2 },
-  { id: 'toast', name: 'トースト', g: 80, n: 1 },
-  { id: 'sumaho', name: 'スマホ', g: 200, n: 1 },
-  { id: 'kyoka', name: '教科書', g: 500, n: 2 },
-  { id: 'suito', name: '水筒', g: 800, n: 1 },
-  { id: 'rando', name: 'ランドセル', g: 1400, n: 1 },
-];
-const BY_ID = Object.fromEntries(ITEMS.map((it, i) => [it.id, { ...it, i }]));
+export let ITEMS = [];
+let BY_ID = {};
+export function useItems(list) {
+  ITEMS = (list || []).map((it) => ({ id: it.id, name: it.name, g: it.g, n: it.n }));
+  BY_ID = Object.fromEntries(ITEMS.map((it, i) => [it.id, { ...it, i }]));
+  return ITEMS;
+}
+useItems(typeof globalThis !== 'undefined' && globalThis.NFCore ? globalThis.NFCore.ITEMS : []);
 export const MEDALS = ['gold', 'silver', 'bronze'];
 export const MEDAL_NAME = { gold: '金', silver: '銀', bronze: '銅' };
 const DAYS = '月火水木金土日';
@@ -35,10 +51,6 @@ export function weightLabel(g) {
 }
 export function formatMeters(m) {
   return formatTenths(Math.round(Math.max(0, Number(m) || 0) * 10));
-}
-export function formatDv(dv) {
-  const v = Math.max(0, Number(dv) || 0);
-  return '+' + (Math.round(v * 100) / 100).toFixed(2);
 }
 export function dayLabel(day) {
   if (!day) return '';
@@ -93,6 +105,15 @@ export function catLine(r) {
   if (d < 0.05) return `${who} すべらずにすんだ`;
   return cats > 1 ? `${who} 合わせて ${formatMeters(d)} m すべった` : `${who} ${formatMeters(d)} m すべった`;
 }
+export function smashLine(r) {
+  const p = smashParts(r);
+  return p ? p.join('・') : null;
+}
+export function smashParts(r) {
+  const n = Math.max(0, Math.round(Number(r && r.smashed) || 0)), best = Math.max(0, Math.round(Number(r && r.smashBest) || 0));
+  if (!n) return null;
+  return best >= 2 ? [`ぶっ飛ばした物 ${n} 個`, `最大 ${best} コ ぶっ飛ばし`] : [`ぶっ飛ばした物 ${n} 個`];
+}
 export function randoLine(r) {
   return threwRando(r) ? 'ランドセルは家に置いてきた' : null;
 }
@@ -116,18 +137,6 @@ export function nextMedalText(tenths, times, medal) {
   const n = nextMedal(tenths, times, medal);
   if (!n) return null;
   return `${MEDAL_NAME[n.medal]}まで あと ${formatTenths(n.diff)} 秒`;
-}
-export function captionParts(c) {
-  return {
-    name: c.name || '',
-    weight: typeof c.weight === 'number' ? weightLabel(c.weight) : String(c.weight || ''),
-    lead: 'いっぱいに引くと',
-    dv: formatDv(c.dv) + ' m/秒',
-  };
-}
-export function captionText(c) {
-  const p = captionParts(c);
-  return `${p.name} ${p.weight} ・ ${p.lead} ${p.dv}`;
 }
 export function shareText(r, url) {
   let s;
