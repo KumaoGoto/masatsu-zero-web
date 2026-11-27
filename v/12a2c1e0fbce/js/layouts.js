@@ -25,7 +25,7 @@
   const LAYOUTS = [
     {
       id: 'ie', name: 'いつもの家', theme: '寝室 → 廊下 → 玄関', day: 1,
-      medals: { gold: 45, silver: 75, bronze: 130 },
+      medals: { gold: 20, silver: 45, bronze: 95 },
       w: 4600, h: 7600, wallT: 160,
       door: { x1: 2250, x2: 3550 },
       start: { x: 1100, y: 1500 },
@@ -69,7 +69,7 @@
     },
     {
       id: 'apart', name: '1K のアパート', theme: 'せまくて家具だらけ', day: 2,
-      medals: { gold: 55, silver: 85, bronze: 125 },
+      medals: { gold: 15, silver: 40, bronze: 100 },
       w: 4600, h: 7600, wallT: 160,
       door: { x1: 600, x2: 1800 },
       start: { x: 1100, y: 1500 },
@@ -115,7 +115,7 @@
     },
     {
       id: 'rouka', name: '長い廊下の家', theme: 'まっすぐ、長い。突き当たりに注意', day: 3,
-      medals: { gold: 75, silver: 105, bronze: 150 },
+      medals: { gold: 35, silver: 65, bronze: 125 },
       w: 4600, h: 7600, wallT: 160,
       door: { x1: 1000, x2: 2200 },
       start: { x: 1100, y: 1500 },
@@ -159,7 +159,7 @@
     },
     {
       id: 'washitsu', name: '和室とふすまの家', theme: 'ふすまのすき間をぬけて', day: 4,
-      medals: { gold: 60, silver: 95, bronze: 150 },
+      medals: { gold: 35, silver: 65, bronze: 110 },
       w: 4600, h: 7600, wallT: 160,
       door: { x1: 2100, x2: 3300 },
       start: { x: 1100, y: 1500 },
@@ -204,7 +204,7 @@
     },
     {
       id: 'neko', name: 'ねこが 3 匹いる家', theme: '戸口ごとに、ねこ', day: 5,
-      medals: { gold: 80, silver: 100, bronze: 125 },
+      medals: { gold: 30, silver: 50, bronze: 90 },
       w: 4600, h: 7600, wallT: 160,
       door: { x1: 1200, x2: 2400 },
       start: { x: 3500, y: 1500 },
@@ -251,7 +251,7 @@
     },
     {
       id: 'kutsu', name: '靴だらけの玄関の家', theme: '玄関が靴の海', day: 6,
-      medals: { gold: 60, silver: 95, bronze: 145 },
+      medals: { gold: 25, silver: 50, bronze: 110 },
       w: 4600, h: 7600, wallT: 160,
       door: { x1: 2700, x2: 3900 },
       start: { x: 3500, y: 1400 },
@@ -292,7 +292,7 @@
     },
     {
       id: 'hiroi', name: '家具の少ない広い家', theme: '広い。速い。でもドアは狭い', day: 0,
-      medals: { gold: 45, silver: 75, bronze: 125 },
+      medals: { gold: 20, silver: 50, bronze: 105 },
       w: 4600, h: 7600, wallT: 160,
       door: { x1: 3100, x2: 4300 },
       start: { x: 3500, y: 1400 },

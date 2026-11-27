@@ -12,21 +12,21 @@ export const TAGLINE = 'ある朝、世界から摩擦が消えた。';
 export const TRUTH = '歩けるのは、足と床のあいだに摩擦があるから。摩擦がないと、物を投げた反動（作用・反作用）でしか動けない。重い物を投げるほど、大きく動く。';
 export const HINTS = {
   first: '下で物を選んで、画面を指で引っぱって離す',
-  after: 'すべって止まれない。また投げて、向きを変えよう',
-  ready: '物を引っぱって離すと、反対へ飛ぶ',
-  readyOpp: '飛ばしたい向きへ引っぱって離す',
+  after: 'ぶつかるまで止まれない。次の物で向きを変えよう',
+  ready: '引いて構えて、離すと投げる',
+  readyOpp: '引っぱって離すと、反対へ飛び出す',
 };
-export const PULLS = { same: '投げる向きと逆に引く', opposite: '投げる向きへ引く', mark: '標準', def: 'same' };
-export const PULL_NOTE = { same: '物は反対へ飛び、自分は引いた向きへすべる', opposite: '物は引いた向きへ飛び、自分は反対へすべる' };
+export const PULLS = { same: 'ロケット式（行きたい方へ引く）', opposite: 'パチンコ式（引いて離すと反対へ飛び出す）', mark: '標準', def: 'same' };
+export const PULL_NOTE = { same: '引いた反対へ投げて、背中から飛ぶ', opposite: '物は引いた向きへ飛び、自分は反対へ' };
 export function pullMode(v) { return v === 'same' || v === 'opposite' ? v : PULLS.def; }
 export function readyHint(mode) { return pullMode(mode) === 'same' ? HINTS.ready : HINTS.readyOpp; }
 export const COACH = {
-  same: { item: '物は反対へ飛ぶ', self: '反動で 自分は引いた向きへ' },
-  opposite: { item: '物は引いた向きへ飛ぶ', self: '反動で 自分は反対へ' },
+  same: { main: '引いて、投げる', sub: '反動で、背中から飛ぶ' },
+  opposite: { main: '引いた反対へ 飛び出す', sub: '物は引いた向きへ' },
 };
 export const HOWTO_PULL = {
-  same: { h: '物を引っぱって、離す', p: '物は引いた反対へ飛ぶ。その反動で、自分は引いた向きへすべる。', item: '物は反対へ', self: '反動で' },
-  opposite: { h: '飛ばしたい向きへ、引っぱって離す', p: '物は引いた向きへ飛ぶ。その反動で、自分は反対へすべる。', item: '物は引いた向きへ', self: '反動で' },
+  same: { h: '引いて構えて、離すと投げる', p: '物を投げると、その反動で、背中から反対へ飛んでいく。', pull: '引く', item: '物を投げる', self: '背中から飛ぶ' },
+  opposite: { h: '引っぱって離すと、反対へ飛び出す', p: '物は引いた向きへ飛び、その反動で、自分は反対へ飛び出す。', pull: '引く', item: '物は引いた向きへ', self: '反対へ飛び出す' },
 };
 export const FAIL = { title: 'この端末では絵を出せませんでした', sub: 'ブラウザを新しくするか、ほかの端末で開いてみてください。', button: '読み直す' };
 export let ITEMS = [];

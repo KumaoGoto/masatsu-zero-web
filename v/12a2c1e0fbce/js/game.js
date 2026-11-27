@@ -25,10 +25,14 @@ const TUNE = {
   introFastSec: 0.5,
   wakeAt: 0.62,
   hintAfterMs: 2600,
+  hintUpper: 0.45,
+  hintClear: 72,
+  hintDoor: 64,
   coachPlays: 2,
   coachIdleSec: 3,
   coachFlipMm: 400,
   iconPx: 64,
+  iconPx3: 76,
   retryStill: 3,
   slow: 0.25,
   slowHold: 0.42,
@@ -64,12 +68,22 @@ const TUNE = {
   strikeN: 5,
   comboN: 2,
   stopMin: 0.04, stopMax: 0.09,
-  stopHitV: 2.5,
-  stopHitFull: 8,
+  stopHitV: 1.8,
+  stopHitFull: 5,
   stopPins: 3,
   stopPinsFull: 8,
   stopGap: 0.6,
+  throwSlow: 0.32,
+  throwSlowSec: 0.2,
+  throwSlowBigSec: 0.35,
+  throwSlowBack: 0.15,
+  throwSlowRec: 0.6,
+  blastVRef: 7.9,
+  blastBig: 0.6,
+  blastStopMin: 0.06, blastStopMax: 0.1,
+  dashFull: 2.4,
   vibThrow: [8, 22], vibHit: [6, 18], vibGoal: [14, 70, 22],
+  vibBlast: [40, 80], vibBlastTail: [34, 16, 34, 16],
   vibHeavy: [25, 40],
   vibStrike: [12, 36, 12, 36, 14],
   vibHitFull: 2.0,
@@ -79,7 +93,7 @@ const TUNE = {
   volumeTick: 140,
 };
 const DEFAULT_SETTINGS = { sfx: 0.8, bgm: 0.6, vibe: true, ghost: true, pull: PULLS.def, quality: 'auto' };
-const PULL_VER = 2;
+const PULL_VER = 3;
 const C = window.NFCore;
 const LIMIT = C.CONFIG.LIMIT_TICKS;
 const HOT_TICKS = Math.max(240, Math.round(LIMIT * TUNE.hotFrac / 240) * 240);
@@ -91,6 +105,9 @@ const DEBUG_URL = QS.has('debug');
 const DEBUG = /^(localhost|127\.0\.0\.1)$/.test(location.hostname);
 const UM = 1e-6;
 const VMS = 240e-6;
+const BLAST_ITEMS = C.ITEMS.some((it) => it.blast && it.blast.v > 0);
+const BLAST_V = BLAST_ITEMS ? Math.max(...C.ITEMS.map((it) => (it.blast && it.blast.v) || 0)) : TUNE.blastVRef / VMS;
+const G_MAX = Math.max(1, ...C.ITEMS.map((it) => it.g));
 const STEP = 1 / 240;
 const DAY_CH = '日月火水木金土';
 const SOFT = { sofa: true, bed: true, futon: true, cat: true, cushion: true };
@@ -157,7 +174,7 @@ let gPrevX = 0, gPrevY = 0;
 const pool = [];
 const fBodies = [];
 const aimF = { dx: 0, dy: 1, power: 0, item: 'kyoka', dv: 0, path: new Float32Array(200), n: 0 };
-const ghostF = { x: 0, y: 0, vx: 0, vy: 0 };
+const ghostF = { x: 0, y: 0, vx: 0, vy: 0, face: null };
 const trail = { pts: new Float32Array(TUNE.trailMax * 2), n: 0 };
 const f = { t: 0, dt: 0, bodies: fBodies, player: { rando: true, mood: 'sleep', kick: 0 }, aim: null, trail: null, ghost: null, timeLeft: LIMIT / 240, phase: 'title' };
 let trailEvery = TUNE.trailEvery;
@@ -168,11 +185,12 @@ const aim = { on: false, dir: 64, power: 0, item: -1, age: 0, r: TUNE.pullPx };
 const gA = { x: 0, y: 0 }, gB = { x: 0, y: 0 }, pA = { x: 0, y: 0 };
 let queued = null;
 const queueBox = { item: 0, dir: 0, power: 0 };
-const fr = { hitV: 0, hitHeavy: false, hitSoft: false, hitPan: 0, meow: -1, meowPan: 0, fx: 0, vib: 0, vibHeavy: 0, vibStrike: false, crashN: 0, crashV: 0, crashMat: 'plastic', crashPan: 0, stamp: 1 };
+const fr = { hitV: 0, hitHeavy: false, hitSoft: false, hitPan: 0, meow: -1, meowPan: 0, fx: 0, vib: 0, vibHeavy: 0, vibStrike: false, vibBlast: 0, crashN: 0, crashV: 0, crashMat: 'plastic', crashPan: 0, stamp: 1 };
 const sndHit = { v: 0, heavy: false, soft: false, pan: 0, gain: 1 }, sndMeow = { v: 0, pan: 0 }, sndThrow = { power: 0, g: 0, pan: 0 };
 const sndCrash = { v: 0, n: 0, mat: 'plastic', pan: 0 }, sndStrike = { n: 0 }, fxStrike = { n: 0, x: 0, y: 0 };
 const sndSel = { g: 0 }, sndTick = { left: 0 }, sndMedal = { medal: null };
 const fxHit = { x: 0, y: 0, v: 0, heavy: false, id: 0, b: -1 }, fxThrow = { id: 0, x: 0, y: 0, dx: 0, dy: 0, power: 0 }, fxOut = { id: 0, x: 0, y: 0 }, fxCat = { id: 0 };
+const fxBlast = { x: 0, y: 0, r: 0, power: 0, src: 'throw', item: null }, sndBoom = { power: 0, src: 'throw', pan: 0 };
 const hudArg = { tenths: LIMIT / 24, hot: false, running: false };
 const invArg = { counts: null, sel: FIRST, icons: null };
 let ghost = null, ghostLog = null, ghostI = 0;
@@ -196,6 +214,7 @@ const rp = {
   recording: false,
   began: false,
   total: 0,
+  extra: 0,
   left: -1,
   region: null,
   card: null, cardT: -1,
@@ -311,6 +330,7 @@ function snapPrev(st, px, py) {
   for (let i = 0; i < bs.length && i < px.length; i++) { px[i] = bs[i].x; py[i] = bs[i].y; }
 }
 function resetRun() {
+  hintT = -1;
   if (pull) pull.abort();
   endAim(false);
   coachHide();
@@ -325,6 +345,7 @@ function resetRun() {
   trail.n = 0; trailEvery = TUNE.trailEvery;
   smashReset();
   sel = FIRST;
+  autoSelect();
   tampered = false; wantShot = false; shotDone = false; cleanAt = 0; sum = null; medalUp = false;
   freeCanvas(shot); shot = null;
   if (share) freeCanvas(share.card);
@@ -348,7 +369,7 @@ function setupGhost() {
   }
   if (!ghostOk.ok) return;
   ghostLog = b.log;
-  ghost = C.createState(layout);
+  ghost = C.createState(layout); ghostF.face = null;
   gPrevX = ghost.bodies[0].x; gPrevY = ghost.bodies[0].y;
 }
 function syncInventory() {
@@ -363,7 +384,9 @@ function syncHud() {
 }
 function autoSelect() {
   if (state.inv[sel] > 0) return;
-  for (let i = state.inv.length - 1; i >= 0; i--) if (state.inv[i] > 0) { sel = i; aim.item = -1; return; }
+  let best = -1;
+  for (let i = 0; i < state.inv.length; i++) if (state.inv[i] > 0 && (best < 0 || C.ITEMS[i].g > C.ITEMS[best].g)) best = i;
+  if (best >= 0) { sel = best; aim.item = -1; }
 }
 function select(i, byUser) {
   if (phase !== 'intro' && phase !== 'ready' && phase !== 'play') return false;
@@ -431,7 +454,7 @@ function retry() {
   if (storeDirty) reloadStore();
   resetRun();
   ui.screen('play');
-  ui.hint(null);
+  ui.hint(null); hintT = -1;
   if (from === 'ending' || from === 'result') { setInsets(ui.insets()); stage.setCamera('intro', FAST); }
   enterReady();
   stillLeft = TUNE.retryStill;
@@ -486,7 +509,7 @@ function startAim(x, y) {
   readyT = 0;
   coachHide();
   syncIdleHint();
-  view.show(x, y, aim.r);
+  view.show(x, y, aim.r, settings.pull === 'same');
   return true;
 }
 function endAim(thrown) {
@@ -546,6 +569,31 @@ function releaseAim() {
   }
   endAim(thrown);
 }
+let hintT = -1, hintAt = null;
+const pB = { x: 0, y: 0 };
+function hintPlace() {
+  const ins = insetsNow || ui.insets(), top = ins.top, bot = (window.innerHeight || 0) - ins.bottom, p = state.bodies[0];
+  const q = stage.project(p.x * UM, p.y * UM, 0, pA);
+  if (!q || !(bot > top)) return null;
+  const heroY = q.y;
+  if (heroY > top + (bot - top) * TUNE.hintUpper) return null;
+  const d = stage.project((layout.door.x1 + layout.door.x2) / 2000, layout.h / 1000, 0, pB), doorY = d ? Math.min(d.y, bot) : bot;
+  const lo = heroY + TUNE.hintClear, hi = doorY - TUNE.hintDoor;
+  return lo <= hi ? Math.round(Math.max(lo, Math.min(hi, (heroY + doorY) / 2))) : null;
+}
+function hintFollow(dt) {
+  if (hintT < 0) return;
+  hintT += dt;
+  if (hintT * 1000 >= TUNE.hintAfterMs) { hintT = -1; return; }
+  const p = state.bodies[0], q = stage.project(p.x * UM, p.y * UM, 0, pA);
+  if (!q) return;
+  const at = hintAt == null ? (insetsNow ? insetsNow.top + 30 : 0) : hintAt;
+  if (Math.abs(q.y - at) >= TUNE.hintClear) return;
+  const next = hintPlace();
+  if (next === hintAt) return;
+  hintAt = next;
+  ui.hint(HINTS.after, Math.max(1, TUNE.hintAfterMs - hintT * 1000), hintAt);
+}
 function doThrow(item, dir, power) {
   if (phase !== 'ready' && phase !== 'play') return false;
   if (!C.canThrow(state, item, dir, power)) {
@@ -556,17 +604,18 @@ function doThrow(item, dir, power) {
     }
     return false;
   }
-  const first = phase === 'ready';
+  const first = phase === 'ready', n0 = state.events.length;
+  preThrow();
   if (!C.throwItem(state, item, dir, power)) return false;
-  throwEffects(item, dir, power);
-  buzz('throw', power / C.CONFIG.POWERS);
+  throwEffects(item, dir, power, n0);
+  if (!(fr.vibBlast > 0)) buzz('throw', power / C.CONFIG.POWERS);
   const p = state.bodies[0];
   if (first) {
     phase = 'play';
     acc = 0;
     coachHide();
     sfx.play('start');
-    if (plays === 0) ui.hint(HINTS.after, TUNE.hintAfterMs); else ui.hint(null);
+    if (plays === 0) { hintT = 0; hintAt = hintPlace(); ui.hint(HINTS.after, TUNE.hintAfterMs, hintAt); } else ui.hint(null);
     plays++;
     store.set(KEYS.plays, plays);
     trail.pts[0] = p.x * UM; trail.pts[1] = p.y * UM; trail.n = 1;
@@ -576,8 +625,11 @@ function doThrow(item, dir, power) {
   syncHud();
   return true;
 }
-function throwEffects(item, dir, power) {
-  const ev = state.events[state.events.length - 1];
+function throwEffects(item, dir, power, n0) {
+  const evs = state.events;
+  let ev = null, k = -1;
+  for (let i = n0; i < evs.length; i++) if (evs[i].t === 'throw') ev = evs[i];
+  if (!ev) for (let i = evs.length - 1; i >= 0 && !ev; i--) if (evs[i].t === 'throw') ev = evs[i];
   const b = state.bodies[ev.id], p = state.bodies[0];
   if (ev.id < prevX.length) { prevX[ev.id] = b.x; prevY[ev.id] = b.y; }
   bodiesDirty = true;
@@ -587,8 +639,78 @@ function throwEffects(item, dir, power) {
   stage.fx('throw', fxThrow);
   sndThrow.power = power / C.CONFIG.POWERS; sndThrow.g = C.ITEMS[item].g; sndThrow.pan = (p.x * UM) / (layout.w / 1000) * 2 - 1;
   sfx.play('throw', sndThrow);
+  sndDash.power = clamp01(Math.hypot(p.vx - pre.vx, p.vy - pre.vy) * VMS / TUNE.dashFull);
+  sfx.play('dash', sndDash);
   kick = 1;
   smashOpen(false);
+  for (let i = n0; i < evs.length; i++) if (evs[i].t === 'blast') { const kb = onBlast(evs[i], 1); if (evs[i].src !== 'crash' && kb > k) k = kb; }
+  throwPunch(k >= 0 ? k : throwK(item, power));
+}
+const pre = { vx: 0, vy: 0 }, sndDash = { power: 0 };
+function preThrow() { const p = state.bodies[0]; pre.vx = p.vx; pre.vy = p.vy; }
+function throwK(item, power) {
+  const it = C.ITEMS[item];
+  if (!it) return 0;
+  const p = power / C.CONFIG.POWERS;
+  return clamp01(BLAST_ITEMS ? ((it.blast && it.blast.v) || 0) * p / BLAST_V : it.g * p / G_MAX);
+}
+function throwPunch(k) {
+  const big = clamp01((k - TUNE.blastBig) / (1 - TUNE.blastBig));
+  slowStart(lerp(TUNE.throwSlowSec, TUNE.throwSlowBigSec, big));
+  if (k >= TUNE.blastBig) stopNow(lerp(TUNE.blastStopMin, TUNE.blastStopMax, big));
+}
+function onBlast(e, gain) {
+  if (!(e.v > 0) || !(e.r > 0)) return -1;
+  const k = clamp01(e.v / BLAST_V), x = e.x * UM;
+  fxBlast.x = x; fxBlast.y = e.y * UM; fxBlast.r = e.r * UM; fxBlast.power = k;
+  fxBlast.src = e.src === 'crash' ? 'crash' : 'throw';
+  fxBlast.item = typeof e.item === 'number' && C.ITEMS[e.item] ? C.ITEMS[e.item].id : typeof e.item === 'string' ? e.item : null;
+  blastLog.n++; if (k > blastLog.max) blastLog.max = +k.toFixed(3);
+  stage.fx('blast', fxBlast);
+  sndBoom.power = k * gain; sndBoom.src = fxBlast.src; sndBoom.pan = x / (layout.w / 1000) * 2 - 1;
+  sfx.play('boom', sndBoom);
+  if (gain === 1 && !rp.on && k > fr.vibBlast) fr.vibBlast = k;
+  return k;
+}
+const slow = { t: -1, hold: 0, back: 0, n: 0, real: 0, fresh: false };
+const blastLog = { n: 0, max: 0, punch: 0, punchSec: 0 };
+function slowReset() { slow.t = -1; slow.fresh = false; timeScale = 1; }
+function slowStart(hold) {
+  let back = TUNE.throwSlowBack;
+  if (rp.recording) { hold *= TUNE.throwSlowRec; back *= TUNE.throwSlowRec; }
+  else if (rp.on) { hold /= rp.speed; back /= rp.speed; }
+  if (slow.t >= 0 && slow.t < slow.hold && slow.hold - slow.t >= hold) return;
+  slow.t = 0; slow.hold = hold; slow.back = back; slow.n++; slow.fresh = true;
+}
+function slowNow() {
+  if (slow.t < 0) return 1;
+  if (slow.t <= slow.hold) return TUNE.throwSlow;
+  const k = clamp01((slow.t - slow.hold) / slow.back);
+  return lerp(TUNE.throwSlow, 1, k * k * (3 - 2 * k));
+}
+const smoothInt = (k) => k * k * k - k * k * k * k / 2;
+function slowInt(a, b) {
+  const s = TUNE.throwSlow, H = slow.hold, B = slow.back;
+  let w = (Math.min(b, H) - Math.min(a, H)) * s;
+  if (B > 0) { const k0 = clamp01((a - H) / B), k1 = clamp01((b - H) / B); w += B * (s * (k1 - k0) + (1 - s) * (smoothInt(k1) - smoothInt(k0))); }
+  return w + Math.max(b, H + B) - Math.max(a, H + B);
+}
+function slowSpan(dt, live) {
+  slow.fresh = false;
+  if (slow.t < 0) { timeScale = 1; return live; }
+  const b = slow.t + dt, w = slowInt(b - live, b);
+  slow.t = b; slow.real += dt;
+  if (b >= slow.hold + slow.back) slow.t = -1;
+  timeScale = slowNow();
+  return w;
+}
+function slowCatch() { if (slow.fresh) { slow.fresh = false; acc *= TUNE.throwSlow; timeScale = TUNE.throwSlow; } }
+function stopNow(d) {
+  if (phase !== 'play' && phase !== 'ready' && phase !== 'replay') return;
+  if (phase === 'replay') d /= rp.speed;
+  blastLog.punch++; blastLog.punchSec += d;
+  if (d > stopT) stopT = d;
+  if (stopGapT < TUNE.stopGap) stopGapT = TUNE.stopGap;
 }
 function pushTrail() {
   if (trail.n >= TUNE.trailMax) {
@@ -603,7 +725,7 @@ function pushTrail() {
 function stepGhost() {
   while (ghostI < ghostLog.length && ghostLog[ghostI][0] <= ghost.tick) {
     const e = ghostLog[ghostI++];
-    C.throwItem(ghost, e[1], e[2], e[3]);
+    if (C.throwItem(ghost, e[1], e[2], e[3])) ghostF.face = Math.atan2(C.DIRY[e[2]], C.DIRX[e[2]]);
   }
   gPrevX = ghost.bodies[0].x; gPrevY = ghost.bodies[0].y;
   C.step(ghost);
@@ -622,6 +744,7 @@ function stepOnce(quiet) {
   if (!quiet && left > 0 && left <= HOT_TICKS && left % 240 === 0) { sndTick.left = left / 240; sfx.play('tick', sndTick); }
   if (queued) { const q = queued; queued = null; doThrow(q.item, q.dir, q.power); }
 }
+const realG = (b) => (b.item >= 0 && C.ITEMS[b.item] ? C.ITEMS[b.item].g : b.g);
 function handleEvents(evs, quiet, gain) {
   const bs = state.bodies, wM = layout.w / 1000;
   for (let i = 0; i < evs.length; i++) {
@@ -629,7 +752,7 @@ function handleEvents(evs, quiet, gain) {
     if (e.t === 'hit') {
       if (quiet) continue;
       const A = bs[e.a], B = e.b >= 0 ? bs[e.b] : null, v = e.v * VMS;
-      const heavy = (B ? Math.min(A.g, B.g) : A.g) >= TUNE.heavyG;
+      const heavy = (B ? Math.min(realG(A), realG(B)) : realG(A)) >= TUNE.heavyG;
       const soft = B ? !!(SOFT[A.kind] || SOFT[B.kind]) : !!SOFT[e.s];
       const x = e.x * UM, y = e.y * UM;
       if (v >= TUNE.hitFxMin && fr.fx < TUNE.hitFxMax) {
@@ -657,6 +780,10 @@ function handleEvents(evs, quiet, gain) {
       if (quiet || !ob) continue;
       fxOut.id = e.id; fxOut.x = ob.x * UM; fxOut.y = Math.min(ob.y * UM, layout.h / 1000 + 1.5);
       stage.fx('out', fxOut);
+    } else if (e.t === 'blast') {
+      if (quiet) continue;
+      const k = onBlast(e, gain);
+      if (k >= 0 && e.src !== 'crash' && gain === 1) throwPunch(k);
     } else if (e.t === 'end') { if (phase === 'replay') replayEnded(e.outcome); else onEnd(e.outcome); }
   }
 }
@@ -664,10 +791,11 @@ function flushFrame() {
   if (fr.hitV > 0) { sndHit.v = fr.hitV; sndHit.heavy = fr.hitHeavy; sndHit.soft = fr.hitSoft; sndHit.pan = fr.hitPan; sfx.play('hit', sndHit); }
   if (fr.crashN > 0) { sndCrash.v = fr.crashV; sndCrash.n = fr.crashN; sndCrash.mat = fr.crashMat; sndCrash.pan = fr.crashPan; sfx.play('crash', sndCrash); }
   if (fr.meow >= 0) { sndMeow.v = fr.meow; sndMeow.pan = fr.meowPan; sfx.play('meow', sndMeow); }
-  if (fr.vibStrike) buzz('strike', 1);
+  if (fr.vibBlast > 0) buzz('blast', fr.vibBlast);
+  else if (fr.vibStrike) buzz('strike', 1);
   else if (fr.vibHeavy > 0) buzz('heavy', fr.vibHeavy);
   else if (fr.vib > 0) buzz('hit', fr.vib);
-  fr.hitV = 0; fr.meow = -1; fr.fx = 0; fr.vib = 0; fr.vibHeavy = 0; fr.vibStrike = false; fr.crashN = 0; fr.crashV = 0;
+  fr.hitV = 0; fr.meow = -1; fr.fx = 0; fr.vib = 0; fr.vibHeavy = 0; fr.vibStrike = false; fr.vibBlast = 0; fr.crashN = 0; fr.crashV = 0;
   fr.stamp++;
 }
 const sm = {
@@ -693,6 +821,8 @@ function smashReset() {
   sm.mv.fill(0); sm.got.fill(0);
   sm.total = 0; sm.best = 0; sm.strikes = 0; sm.combos = 0; sm.last = null; sm.open = false; sm.n = 0;
   stopT = 0; stopGapT = 0; stopReq = 0; stopVib = 0; stopLog.n = 0; stopLog.sec = 0;
+  slowReset(); slow.n = 0; slow.real = 0;
+  blastLog.n = 0; blastLog.max = 0; blastLog.punch = 0; blastLog.punchSec = 0;
 }
 function smashOpen(quiet) {
   if (sm.open) smashClose(quiet);
@@ -773,11 +903,11 @@ function onEnd(outcome) {
   endAim(false);
   ghost = null;
   smashClose(false);
-  stopT = 0; stopReq = 0;
+  stopT = 0; stopReq = 0; slowReset();
   sum = C.summary(state);
   endLog = state.log.map((e) => e.slice());
   resultDelay = outcome === 'out' ? TUNE.resultOut : TUNE.resultFail;
-  ui.hint(null);
+  ui.hint(null); hintT = -1;
   syncHud();
   ui.quiet(true);
   if (outcome === 'out') {
@@ -935,9 +1065,11 @@ function replayBegin(record) {
   rp.on = true; rp.recording = record;
   rp.i = 0; rp.t = 0; rp.cardT = -1; rp.cap = -1; rp.capT = 9; rp.began = false; rp.left = -1;
   const secs = sum.ticks / 240;
+  rp.extra = record ? slowExtra(endLog) : 0;
   rp.speed = record ? videoSpeed(secs, sum.outcome) : rp.pick;
+  if (record && rp.speed > 1) rp.speed = videoSpeed(secs + rp.extra * rp.speed, sum.outcome);
   rp.lead = record ? VIDEO.lead : TUNE.replayLead;
-  const body = VIDEO.lead + secs / rp.speed, end = sum.outcome === 'out' ? VIDEO.endOut : VIDEO.endFail;
+  const body = VIDEO.lead + secs / rp.speed + rp.extra, end = sum.outcome === 'out' ? VIDEO.endOut : VIDEO.endFail;
   rp.total = body + Math.max(end, VIDEO.min - VIDEO.card - body) + VIDEO.card;
   state = C.createState(layout);
   snapPrev(state, prevX, prevY);
@@ -959,11 +1091,20 @@ function replayBegin(record) {
   syncHud();
   wakeOn();
 }
+function slowExtra(log) {
+  let e = 0;
+  for (const x of log || []) {
+    const big = clamp01((throwK(x[1], x[3]) - TUNE.blastBig) / (1 - TUNE.blastBig));
+    e += (1 - TUNE.throwSlow) * TUNE.throwSlowRec * (lerp(TUNE.throwSlowSec, TUNE.throwSlowBigSec, big) + TUNE.throwSlowBack / 2);
+  }
+  return e;
+}
 function replayStep() {
   while (rp.i < endLog.length && endLog[rp.i][0] <= state.tick && !state.over) {
-    const e = endLog[rp.i++];
+    const e = endLog[rp.i++], n0 = state.events.length;
+    preThrow();
     if (!C.throwItem(state, e[1], e[2], e[3])) continue;
-    throwEffects(e[1], e[2], e[3]);
+    throwEffects(e[1], e[2], e[3], n0);
     const p = state.bodies[0];
     if (rp.i === 1) { sfx.play('start'); trail.pts[0] = p.x * UM; trail.pts[1] = p.y * UM; trail.n = 1; }
     rp.cap = e[1]; rp.capT = 0;
@@ -980,7 +1121,7 @@ function replayStep() {
 }
 function replayEnded(outcome) {
   smashClose(false);
-  stopT = 0; stopReq = 0;
+  stopT = 0; stopReq = 0; slowReset();
   phase = 'replayEnd';
   endT = 0; endOutcome = outcome;
   const end = rp.recording ? (outcome === 'out' ? VIDEO.endOut : VIDEO.endFail) : (outcome === 'out' ? TUNE.resultOut : TUNE.resultFail);
@@ -1002,7 +1143,7 @@ function replayExit() {
     acc = STEP; endT = 0; endOutcome = state.outcome; bodiesDirty = true;
     stage.fx('reset');
   }
-  rp.on = false; timeScale = 1;
+  rp.on = false; slowReset();
   view.note(null);
   phase = 'result';
   ui.setReplay({ view: null });
@@ -1165,6 +1306,7 @@ function buzz(kind, k) {
     else if (kind === 'hit') nav.vibrate(Math.round(lerp(TUNE.vibHit[0], TUNE.vibHit[1], k)));
     else if (kind === 'heavy') nav.vibrate(Math.round(lerp(TUNE.vibHeavy[0], TUNE.vibHeavy[1], k)));
     else if (kind === 'strike') nav.vibrate(TUNE.vibStrike);
+    else if (kind === 'blast') nav.vibrate([Math.round(lerp(TUNE.vibBlast[0], TUNE.vibBlast[1], k))].concat(TUNE.vibBlastTail));
     else nav.vibrate(TUNE.vibGoal);
   } catch (e) {   }
 }
@@ -1244,23 +1386,26 @@ function advance(dt) {
     idleT += dt;
     if (!wakeIdle && idleT >= TUNE.wakeIdleSec) { wakeIdle = true; wakeOff(); }
   } else if (phase === 'play') {
-    acc += eatStop(dt);
+    acc += slowSpan(dt, eatStop(dt));
     let n = 0;
     while (acc >= STEP && n < TUNE.stepsCap && phase === 'play') {
       stepOnce(false); acc -= STEP; n++;
+      slowCatch();
       if (stopReq > 0 && takeStop()) break;
     }
     if (n >= TUNE.stepsCap && acc >= STEP) acc -= Math.floor(acc / STEP) * STEP;
     if (phase === 'play' && aim.on) updateAim();
+    if (phase === 'play') hintFollow(dt);
   } else if (phase === 'replay') {
     rp.t += dt; rp.capT += dt;
     if (rp.lead > 0) rp.lead -= dt;
     else {
-      acc += eatStop(dt) * rp.speed;
+      acc += slowSpan(dt, eatStop(dt)) * rp.speed;
       let n = 0;
       const lim = rp.recording ? TUNE.recStepsCap : TUNE.stepsCap;
       while (acc >= STEP && n < lim && phase === 'replay') {
         replayStep(); acc -= STEP; n++;
+        slowCatch();
         if (stopReq > 0 && takeStop()) break;
       }
       if (n >= lim && acc >= STEP) acc -= Math.floor(acc / STEP) * STEP;
@@ -1410,7 +1555,8 @@ async function boot() {
   phase = 'title';
   resetRun();
   refreshTitle();
-  const icons = C.ITEMS.map((it) => stage.itemIcon(it.id, TUNE.iconPx) || null);
+  const iconPx = C.ITEMS.length <= 3 ? TUNE.iconPx3 : TUNE.iconPx;
+  const icons = C.ITEMS.map((it) => stage.itemIcon(it.id, iconPx) || null);
   if (icons.every((c) => c)) {
     invArg.icons = icons;
     iconMap = {};
@@ -1505,8 +1651,10 @@ function installDebug() {
       aim: aim.on ? { dir: aim.dir, power: aim.power, n: aimF.n, dv: aimF.dv } : null,
       smash: { total: sm.total, best: sm.best, strikes: sm.strikes, combos: sm.combos, last: sm.last, open: sm.open },
       stop: { n: stopLog.n, ms: Math.round(stopLog.sec * 1000), on: stopT > 0 },
+      slow: { n: slow.n, on: slow.t >= 0, t: +Math.max(0, slow.t).toFixed(4), hold: +slow.hold.toFixed(4), back: +slow.back.toFixed(4), scale: +timeScale.toFixed(4), real: Math.round(slow.real * 1000) },
+      blast: { n: blastLog.n, max: blastLog.max, punch: blastLog.punch, punchMs: Math.round(blastLog.punchSec * 1000), vmax: BLAST_V, fromItems: BLAST_ITEMS },
       trail: trail.n, ghost: !!ghost, plays, stageDead, wake: wakeWant, veil: !!(canvas && canvas.hasAttribute('data-veil')), settings: { ...settings }, insets: insetsNow, coach: coachOn, avoid: avoidNow, pull: settings.pull,
-      replay: { on: rp.on, speed: rp.speed, pick: rp.pick, recording: rp.recording, t: +rp.t.toFixed(2), total: +rp.total.toFixed(2),
+      replay: { on: rp.on, speed: rp.speed, pick: rp.pick, recording: rp.recording, t: +rp.t.toFixed(2), total: +rp.total.toFixed(2), extra: +rp.extra.toFixed(4),
         video: rp.video ? { size: rp.video.blob.size, type: rp.video.type, name: rp.video.name, ms: Math.round(rp.video.ms) } : null },
       shot: !!shot, cleanShot: cleanOk, card: !!(share && share.blob), frames, perf: { ms: +perf.ms.toFixed(3), max: +perf.max.toFixed(2), steps: perf.steps, draws: perf.draws, shot: +perf.shot.toFixed(1), clean: +perf.clean.toFixed(1), card: +perf.card.toFixed(1), result: Math.round(perf.result), intro: Math.round(perf.intro), slow: perf.slow.slice(), gaps: perf.gaps.slice() },
       stage: stage.stats() ? { ...stage.stats() } : null, errors: errs.slice(),

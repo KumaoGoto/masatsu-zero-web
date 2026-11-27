@@ -25,6 +25,8 @@ const TUNE = {
     stuck:   { lv: 0.45, send: 0.16, gap: 0.50, max: 1 },
     crash:   { lv: 1.00, send: 0.16, gap: 0.06, max: 6 },
     strike:  { lv: 0.50, send: 0.30, gap: 0.40, max: 2 },
+    boom:    { lv: 1.00, send: 0.20, gap: 0.12, max: 3, duck: 0.45 },
+    dash:    { lv: 1.00, send: 0.06, gap: 0.08, max: 2 },
     slide:   { lv: 1.00, send: 0.05 },
     aim:     { lv: 1.00, send: 0.04 },
   },
@@ -115,11 +117,27 @@ const TUNE = {
     notes: [587.33, 739.99, 880, 1174.66, 1479.98, 1760, 2349.32], step: 0.042, a: 0.5, len: 0.55,
     top: { a: 0.42, len: 1.0 }, bell: 0.3, pop: 0.55, punch: 0.5, shine: [0.05, 0.14], up: 2,
   },
+  boom: {
+    floor: 0.6, curve: 1,
+    at: 0.008,
+    big: [0.25, 0.9],
+    doh: { f: [150, 60, 40], glide: 0.06, sag: 0.55, t60: [0.3, 0.75], drive: [0.55, 1], sat: 2.6, a: 0.5, oct: 0.5 },
+    drum: { f: [300, 128], t60: 0.24, a: 0.5 },
+    push: { lp: [2200, 2800], lpEnd: 300, hp: 45, tau: [0.045, 0.085], a: 3.2 },
+    kaan: { at: 0.012, f: [720, 1180, 2150], q: [2.6, 3.4, 3.4], fa: [1, 0.75, 0.4], drop: 0.8, tau: [0.06, 0.12], a: 3.6, ring: 0.05,
+      pop: { f: [650, 2600], a: 0.45, tau: 0.022 } },
+    dust: { at: 0.035, f: [4200, 1600], q: 0.6, lp: 6000, atk: [0.04, 0.1], len: [0.25, 1.0], fall: 2.6, a: 0.55, w: 0.65 },
+    bits: { from: 0.55, n: 5, gap: [0.04, 0.1], f: [900, 2200], a: 0.16 },
+    crash: { doh: 0.55, kaan: 1.15, kaanT: 0.75, dust: [0.45, 0.7], bits: 0.4 },
+    duck: { from: 0.6, depth: 0.55 },
+  },
+  dash: { at: 0.032, dur: [0.2, 0.3], f: [2600, 5000, 3000], q: 1.3, lp: 6500, a: [0.7, 2.0], oct: 0.4, w: 0.35, air: { f: 9000, a: 0.06 } },
   bgm: { level: 0.32, xfade: 0.6, duck: 0.3, duckIn: 0.08, duckOut: 0.45, keep: 2 },
 };
-const NAMES = ['throw', 'hit', 'meow', 'select', 'ui', 'start', 'goal', 'late', 'stuck', 'tick', 'alarm', 'newbest', 'medal', 'crash', 'strike'];
+const NAMES = ['throw', 'hit', 'meow', 'select', 'ui', 'start', 'goal', 'late', 'stuck', 'tick', 'alarm', 'newbest', 'medal', 'crash', 'strike', 'boom', 'dash'];
 const clamp = (x, a, b) => (x < a ? a : x > b ? b : x);
 const lerp = (a, b, k) => a + (b - a) * k;
+const ease = (a, b, x) => { x = clamp((x - a) / (b - a), 0, 1); return x * x * (3 - 2 * x); };
 let seedS = (Math.random() * 4294967296) >>> 0;
 function rnd() {
   seedS = (seedS + 0x6d2b79f5) >>> 0;
@@ -293,7 +311,7 @@ function warmUp() {
   const OAC = globalThis.OfflineAudioContext || globalThis.webkitOfflineAudioContext;
   if (!OAC) { PREP.warm = true; return; }
   let eng = null;
-  const list = ['throw', 'hit', 'crash', 'select', 'ui'], seed = seedS;
+  const list = ['throw', 'hit', 'crash', 'select', 'ui', 'boom', 'dash'], seed = seedS;
   const step = () => {
     const t0 = nowMs();
     try {
@@ -813,6 +831,86 @@ function makeEngine(ac, opt) {
     conn(sh, hb, hg); sh.stop(tn + 1.5);
     return tn - t + 0.75;
   };
+  let satC = null;
+  function satCurve() {
+    if (satC) return satC;
+    const n = 1024, k = TUNE.boom.doh.sat;
+    satC = new Float32Array(n);
+    for (let i = 0; i < n; i++) { const x = (i / (n - 1)) * 2 - 1; satC[i] = Math.tanh(k * x) / Math.tanh(k); }
+    return satC;
+  }
+  S.boom = (o, t, p) => {
+    const B = TUNE.boom, k = amt(p.power, 0.6), cr = p.src === 'crash', X = B.crash;
+    const a = lerp(B.floor, 1, Math.pow(k, B.curve)), big = ease(B.big[0], B.big[1], k);
+    const t0 = cr ? t : t + B.at;
+    let end = t0 + 0.3;
+    {
+      const T = B.push, s = src('pink', t0), lp = F('lowpass', 0, t0, lerp(T.lp[0], T.lp[1], k) * jit(0.1)), hp = F('highpass', 0, t0, T.hp), g = G(o, 0);
+      lp.frequency.exponentialRampToValueAtTime(T.lpEnd, t0 + 0.09);
+      conn(s, lp, hp, g); s.stop(env(g.gain, t0, a * T.a, 0.004, lerp(T.tau[0], T.tau[1], k) * (cr ? 0.8 : 1)));
+    }
+    {
+      const T = B.doh, dl = cr ? X.doh : 1, sh = Math.pow(2, (0.5 - k) * T.oct) * jit(0.03);
+      const os = osc('sine', t0), dr = G(null, 0), ws = ac.createWaveShaper(), g = G(o, a * T.a);
+      ws.curve = satCurve();
+      path(os.frequency, t0, [[0, T.f[0] * sh], [T.glide, T.f[1] * sh], [T.sag, T.f[2] * sh]]);
+      const e = env(dr.gain, t0, lerp(T.drive[0], T.drive[1], big), 0.003, (lerp(T.t60[0], T.t60[1], k) * dl) / 6.91);
+      conn(os, dr, ws, g); os.stop(e);
+      mode(o, t0, B.drum.f[1] * sh, a * B.drum.a * (0.35 + 0.65 * k), B.drum.t60 * (cr ? 0.8 : 1), { from: B.drum.f[0] / B.drum.f[1], glide: 0.035, atk: 0.002 });
+      end = Math.max(end, t0 + lerp(T.t60[0], T.t60[1], k) * dl);
+    }
+    if (big > 0.01) {
+      const T = B.kaan, tk = t0 + T.at, ka = a * big * T.a * (cr ? X.kaan : 1), tau = lerp(T.tau[0], T.tau[1], k) * (cr ? X.kaanT : 1);
+      const s = src('white', tk), b = F('bandpass', 1.0, tk, T.pop.f[0]), g = G(o, 0);
+      b.frequency.exponentialRampToValueAtTime(T.pop.f[1], tk + 0.035);
+      conn(s, b, g); s.stop(env(g.gain, tk, ka * T.pop.a, 0.002, T.pop.tau));
+      const col = jit(0.06), s2 = src('white', tk), sum = G(o, 0);
+      for (let i = 0; i < T.f.length; i++) {
+        const f = T.f[i] * col, bp = F('bandpass', T.q[i], tk, f);
+        bp.frequency.exponentialRampToValueAtTime(f * T.drop, tk + tau * 4);
+        conn(s2, bp, G(sum, T.fa[i]));
+        mode(o, tk, f * T.drop, ka * T.ring * T.fa[i], tau * 5, { from: 1 / T.drop, glide: tau * 2, atk: 0.003 });
+      }
+      s2.stop(env(sum.gain, tk, ka, 0.0035, tau));
+    }
+    const dk = ease(0.12, 0.9, k);
+    if (dk > 0.01) {
+      const T = B.dust, td = t0 + T.at, len = lerp(T.len[0], T.len[1], k) * (cr ? X.dust[0] : 1), da = a * T.a * dk * (cr ? X.dust[1] : 1);
+      const atk = lerp(T.atk[0], T.atk[1], k) * (cr ? 0.6 : 1);
+      for (const side of [-1, 1]) {
+        const s = src('white', td), bp = F('bandpass', T.q, td, T.f[0] * jit(0.08)), lp = F('lowpass', 0, td, T.lp), g = G(panTo(o, side * T.w), 0);
+        bp.frequency.exponentialRampToValueAtTime(T.f[1], td + atk + len);
+        g.gain.setValueAtTime(0, td);
+        g.gain.linearRampToValueAtTime(da, td + atk);
+        g.gain.setTargetAtTime(0, td + atk, len / T.fall);
+        conn(s, bp, lp, g); s.stop(td + atk + len * (9 / T.fall));
+      }
+      end = Math.max(end, td + atk + len);
+    }
+    const nb = Math.round(B.bits.n * ease(B.bits.from, 1, k) * (cr ? X.bits : 1));
+    let tb = t0 + 0.05;
+    for (let i = 0; i < nb; i++) {
+      const T = B.bits;
+      tb += lerp(T.gap[0], T.gap[1], rnd()) * (1 + i * 0.3);
+      const f = lerp(T.f[0], T.f[1], rnd()), ba = a * T.a * (1 - i / (nb + 1)) * jit(0.3), d = panTo(o, (i % 2 ? 1 : -1) * (0.3 + 0.5 * rnd()));
+      mode(d, tb, f, ba, 0.07 * jit(0.3), { from: 0.88, glide: 0.012 });
+      mode(d, tb, f * 2.45 * jit(0.04), ba * 0.35, 0.035);
+      burst(d, tb, { type: 'bandpass', q: 1.4, f: Math.min(9000, f * 3), a: ba * 0.45, tau: 0.003 });
+      end = Math.max(end, tb + 0.1);
+    }
+    return end - t + 0.1;
+  };
+  S.dash = (o, t, p) => {
+    const T = TUNE.dash, k = amt(p.power, 0.6), t0 = t + T.at;
+    const d = lerp(T.dur[0], T.dur[1], k), a = lerp(T.a[0], T.a[1], k), sh = Math.pow(2, (k - 0.5) * T.oct) * jit(0.04);
+    const tp = t0 + d * 0.28, lp = F('lowpass', 0.7, t0, T.lp);
+    lp.connect(o);
+    for (const side of [-1, 1]) {
+      swish(panTo(lp, side * T.w), t0 + (side > 0 ? 0.005 : 0), { q: T.q, f: [T.f[0] * sh, T.f[1] * sh * jit(0.04), T.f[2] * sh], a: a * 0.5, tp: tp + (side > 0 ? 0.005 : 0), d });
+    }
+    burst(o, t0, { type: 'highpass', q: 0, f: T.air.f, a: a * T.air.a, atk: 0.015, tau: d * 0.22 });
+    return T.at + d * 1.3;
+  };
   const last = {}, lastV = {}, voices = {};
   function voiceOut(name, p) {
     const V = TUNE.voice[name];
@@ -832,9 +930,9 @@ function makeEngine(ac, opt) {
     p = p || {};
     const mat = name === 'crash' ? (TUNE.crash[p.mat] && TUNE.crash[p.mat].g ? p.mat : 'plastic') : null;
     const key = name === 'hit' ? (p.soft ? 'hit.soft' : p.heavy ? 'hit.heavy' : 'hit.light') : mat ? 'crash.' + mat : name;
-    const vv = +p.v || 0;
+    const vv = name === 'boom' || name === 'dash' ? amt(p.power, 0.6) : +p.v || 0;
     let merged = false;
-    if (last[key] != null && t - last[key] < V.gap && !((name === 'hit' || mat) && vv > (lastV[key] || 0) + 0.35)) {
+    if (last[key] != null && t - last[key] < V.gap && !((name === 'hit' || mat || name === 'boom') && vv > (lastV[key] || 0) + 0.35)) {
       if (!mat) return false;
       merged = true;
     }
@@ -990,7 +1088,7 @@ export function createSfx(opts) {
   const B = { want: null, cur: null, bufs: {}, order: [], loading: {}, failed: {} };
   let base = '';
   try { base = opts.bgmBase || new URL('../bgm/', import.meta.url).href; } catch (e) { base = 'bgm/'; }
-  let tapDest = null, tapGate = null, unlockMs = null, acMs = null;
+  let tapDest = null, tapGate = null, unlockMs = null, acMs = null, duckUntil = 0;
   try { prepStart(); } catch (e) {   }
   const quiet = (p) => { if (p && typeof p.then === 'function') p.then(null, () => {}); };
   const ready = () => !!eng && unlocked && (ac.state === 'running' || (ac.state === 'suspended' && nowMs() < wakeUntil));
@@ -1047,7 +1145,10 @@ export function createSfx(opts) {
     try {
       const ok = eng.play(name, p || {}, ac.currentTime + TUNE.lead);
       const V = TUNE.voice[name];
-      if (ok && V && V.duck) duck(V.duck);
+      if (ok && V && V.duck) {
+        if (name !== 'boom') duck(V.duck);
+        else { const k = amt((p || {}).power, 0.6), D = TUNE.boom.duck; if (k >= D.from) duck(V.duck * k, lerp(1, D.depth, k)); }
+      }
       return ok;
     } catch (e) { return false; }
   }
@@ -1091,11 +1192,13 @@ export function createSfx(opts) {
       eng.bgmGate.gain.setTargetAtTime(1, ac.currentTime, 0.15);
     } catch (e) {   }
   }
-  function duck(sec) {
+  function duck(sec, depth) {
     try {
       const g = eng.bgmDuck.gain, t = ac.currentTime, Bt = TUNE.bgm;
+      if (depth != null && t < duckUntil) return;
+      if (depth == null) duckUntil = t + sec;
       g.cancelScheduledValues(t);
-      g.setTargetAtTime(Bt.duck, t, Bt.duckIn);
+      g.setTargetAtTime(depth != null ? depth : Bt.duck, t, Bt.duckIn);
       g.setTargetAtTime(1, t + sec, Bt.duckOut);
     } catch (e) {   }
   }
@@ -1181,6 +1284,7 @@ async function render(spec) {
   const ac = new OAC(2, Math.ceil(sr * dur), sr);
   if (spec.seed != null) seedS = spec.seed >>> 0;
   const eng = makeEngine(ac, { clip: spec.clip, verb: 'now' });
+  if (spec.probe) { const os = ac.createOscillator(), g = ac.createGain(); os.frequency.value = spec.probe.f; g.gain.value = spec.probe.a; os.connect(g); g.connect(eng.sfxVol); os.start(0); }
   const played = [];
   for (const e of spec.events || []) played.push(eng.play(e.name, e.p || {}, e.at || 0));
   const cont = [];

@@ -350,8 +350,10 @@ export function createChild() {
     if (W.sleep > 0.0005) add(W.sleep, { px: -0.15, py: FUTON_TOP + 0.077, lean: HP, hx: 0.04, hy: 0.22, nod: 0.42, tilt: 0.08, aRf: 0.3, aRo: 2.25, aLf: -0.3, aLo: 1.2, lRf: -0.2, lRo: 0.42, lLf: -0.2, lLo: 0.22, eye: 0.1, mouth: 0.36 + 0.14 * Math.sin(t * 1.5) });
     if (aimW > 0.001) {
       const e = ease(aimP);
-      A.lean = 0.05 + 0.13 * e; A.roll = 0; A.py = 0.012 * e; A.twist = -0.6 * e; A.bend = -0.06 * e; A.hy = 0.5 * e; A.nod = -0.04; A.tilt = 0;
+      A.lean = 0.02 - 0.3 * e; A.roll = 0; A.py = 0.012 * e; A.twist = -0.6 * e; A.bend = -0.16 * e; A.hy = 0.5 * e; A.nod = -0.04 - 0.1 * e; A.tilt = 0;
       A.aRf = lerp(1.25, 3.8, e); A.aRo = 0.18 + 0.3 * e; A.aLf = 1.35 + 0.25 * e; A.aLo = 0.12; A.lRf = -0.32 * e; A.lRo = 0.1; A.lLf = 0.36 * e; A.lLo = 0.1; A.eye = 0.86; A.mouth = 0.14;
+      const tr = clamp((aimP - 0.86) / 0.14, 0, 1);
+      if (tr > 0) { A.roll += 0.04 * tr * Math.sin(t * 53); A.twist += 0.05 * tr * Math.sin(t * 41 + 1); A.aRf += 0.08 * tr * Math.sin(t * 61 + 2); A.eye = lerp(A.eye, 0.35, tr); A.mouth = lerp(A.mouth, 0.5, tr); }
       for (const k in A) T[k] = lerp(T[k], A[k], aimW);
     }
     if (kickW > 0.001) {
