@@ -8,7 +8,7 @@ const SITE={
   announce:'',
   contact:'support.kumaogoto@gmail.com',
 };
-const WEB_VERSION='1.1.0';
+const WEB_VERSION='1.4.0';
 const BGM_DIR='bgm/';
 const BGM_LIST=[];
 const TERMS_VERSION=1, NAME_MAX=10, BOARD_SIZE=100, TIMEOUT_MS=8000;

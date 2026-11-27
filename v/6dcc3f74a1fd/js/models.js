@@ -6,6 +6,7 @@ export const HEIGHTS = {
   fridge: 1.0, kitchen: 0.8, washer: 0.85, tansu: 0.9, counter: 0.8, bench: 0.4, shelf: 0.9, bed: 0.46, cardboard: 0.5,
   plant: 0.9, kasa: 0.85, pillar: 0.55, lamp: 0.95, vase: 0.85, stool: 0.42, bin: 0.4,
   cat: 0.33, chair: 0.75, ball: 0.24, robot: 0.1, shoe: 0.11, slipper: 0.07, cushion: 0.1, box: 0.3, toy: 0.14,
+  plush: 0.25, books: 0.22, bottle: 0.265, pillow: 0.095, basket: 0.235,
   child: 0.65,
 };
 export const FACE = { S: 0, E: HP, N: PI, W: -HP };
@@ -349,8 +350,10 @@ export function createChild() {
     if (W.sleep > 0.0005) add(W.sleep, { px: -0.15, py: FUTON_TOP + 0.077, lean: HP, hx: 0.04, hy: 0.22, nod: 0.42, tilt: 0.08, aRf: 0.3, aRo: 2.25, aLf: -0.3, aLo: 1.2, lRf: -0.2, lRo: 0.42, lLf: -0.2, lLo: 0.22, eye: 0.1, mouth: 0.36 + 0.14 * Math.sin(t * 1.5) });
     if (aimW > 0.001) {
       const e = ease(aimP);
-      A.lean = 0.05 + 0.13 * e; A.roll = 0; A.py = 0.012 * e; A.twist = -0.6 * e; A.bend = -0.06 * e; A.hy = 0.5 * e; A.nod = -0.04; A.tilt = 0;
+      A.lean = 0.02 - 0.3 * e; A.roll = 0; A.py = 0.012 * e; A.twist = -0.6 * e; A.bend = -0.16 * e; A.hy = 0.5 * e; A.nod = -0.04 - 0.1 * e; A.tilt = 0;
       A.aRf = lerp(1.25, 3.8, e); A.aRo = 0.18 + 0.3 * e; A.aLf = 1.35 + 0.25 * e; A.aLo = 0.12; A.lRf = -0.32 * e; A.lRo = 0.1; A.lLf = 0.36 * e; A.lLo = 0.1; A.eye = 0.86; A.mouth = 0.14;
+      const tr = clamp((aimP - 0.86) / 0.14, 0, 1);
+      if (tr > 0) { A.roll += 0.04 * tr * Math.sin(t * 53); A.twist += 0.05 * tr * Math.sin(t * 41 + 1); A.aRf += 0.08 * tr * Math.sin(t * 61 + 2); A.eye = lerp(A.eye, 0.35, tr); A.mouth = lerp(A.mouth, 0.5, tr); }
       for (const k in A) T[k] = lerp(T[k], A[k], aimW);
     }
     if (kickW > 0.001) {
@@ -1341,6 +1344,207 @@ const TOYS = {
     return 0.145;
   },
 };
+const PIN_LOOKS = 4;
+function paintTri(b, cls, from, fn) {
+  const k = b.b[cls];
+  if (!k) return;
+  for (let i = from; i < k.p.length; i += 9) {
+    const col = fn((k.p[i] + k.p[i + 3] + k.p[i + 6]) / 3, (k.p[i + 1] + k.p[i + 4] + k.p[i + 7]) / 3, (k.p[i + 2] + k.p[i + 5] + k.p[i + 8]) / 3);
+    if (col) for (let j = 0; j < 9; j += 3) setc(k.c, i + j, col);
+  }
+}
+const coneGeo = (n) => memo('cone' + n, () => new THREE.ConeGeometry(1, 1, n, 1));
+const PLUSH = {
+  bear: [mix(PAL.brown, PAL.woodRed, 0.3), PAL.cream, mix(PAL.woodDark, PAL.brown, 0.35), PAL.fabricGrey],
+  rabbit: [mix(PAL.pinkPale, PAL.white, 0.15), PAL.white, mix(PAL.skyPale, PAL.white, 0.15), mix(PAL.butter, PAL.white, 0.45)],
+  dino: [PAL.leafLight, PAL.teal, mix(PAL.sky, PAL.blue, 0.25), PAL.purple],
+};
+function plush(b, name, s) {
+  const M = { cls: 'matte' }, G = { cls: 'gloss' };
+  const fur = PLUSH[name][s], light = name === 'dino' ? mix(PAL.butter, PAL.cream, 0.35) : name === 'rabbit' ? PAL.white : mix(PAL.cream, fur, 0.12);
+  const lightC = linear(name === 'rabbit' && s === 1 ? PAL.pinkPale : light), pad = linear(name === 'rabbit' ? PAL.pink : light);
+  const eye = mix(PAL.black, PAL.hair, 0.3), nose = name === 'rabbit' ? PAL.pink : name === 'dino' ? dk(fur, 0.55) : eye;
+  let n0 = b.n('matte');
+  b.ball(1, fur, { x: -0.014, y: 0.07, sx: 0.064, sy: 0.07, sz: 0.07, ws: 8, hs: 5, color2: dk(fur, 0.14), ...M });
+  paintTri(b, 'matte', n0, (x, y, z) => ((x + 0.014) / 0.064 > 0.5 && Math.abs(z) < 0.048 && y > 0.025 && y < 0.125 ? lightC : null));
+  for (const sd of [1, -1]) b.put((q) => {
+    q.ball(1, fur, { sx: 0.031, sy: 0.053, sz: 0.034, rz: -HP, ws: 6, hs: 5, ...M });
+    paintTri(q, 'matte', 0, (x) => (x > 0.038 ? pad : null));
+  }, { x: 0.042, y: 0.031, z: sd * 0.044, ry: -sd * 0.3 });
+  for (const sd of [1, -1]) b.put((q) => q.ball(1, fur, { y: -0.034, sx: 0.025, sy: 0.043, sz: 0.024, ws: 6, hs: 4, ...M }), { x: 0.01, y: 0.118, z: sd * 0.057, rz: 0.8, rx: -sd * 0.38 });
+  const hx = 0.004, hy = 0.168, hr = 0.068, on = (yaw, pitch, k = 1) => [hx + hr * k * Math.cos(pitch) * Math.cos(yaw), hy + hr * 0.9 * k * Math.sin(pitch), hr * k * Math.cos(pitch) * Math.sin(yaw)];
+  b.ball(hr, fur, { x: hx, y: hy, sy: 0.9, ws: 12, hs: 6, ...M });
+  if (name === 'dino') {
+    const [mx, my] = on(0, -0.24, 0.66);
+    b.ball(1, mix(fur, light, 0.3), { x: mx, y: my, sx: 0.046, sy: 0.029, sz: 0.042, ws: 8, hs: 5, ...M });
+    for (const sd of [1, -1]) b.ball(0.0045, nose, { x: mx + 0.041, y: my + 0.01, z: sd * 0.013, ws: 4, hs: 3, ...G });
+  } else {
+    const [mx, my] = on(0, -0.3, name === 'rabbit' ? 0.86 : 0.8), big = name === 'rabbit' ? 0.8 : 1;
+    b.ball(1, light, { x: mx, y: my, sx: 0.022 * big, sy: 0.019 * big, sz: 0.03 * big, ws: 7, hs: 4, ...M });
+    b.ball(1, nose, { x: mx + 0.021 * big, y: my + 0.008, sx: 0.008, sy: 0.007, sz: 0.011, ws: 5, hs: 3, ...G });
+  }
+  for (const sd of [1, -1]) { const [ex, ey, ez] = on(sd * 0.43, name === 'dino' ? 0.16 : 0.06, 0.975); b.ball(0.0088, eye, { x: ex, y: ey, z: ez, sx: 0.7, ws: 6, hs: 3, ...G }); }
+  if (name === 'bear') {
+    for (const sd of [1, -1]) b.put((q) => {
+      q.ball(1, fur, { sx: 0.024, sy: 0.011, sz: 0.024, rz: -HP, ws: 6, hs: 4, ...M });
+      paintTri(q, 'matte', 0, (x, y, z) => (x > 0.004 && Math.hypot(y, z) < 0.016 ? lightC : null));
+    }, { x: -0.004, y: 0.222, z: sd * 0.047, rx: sd * 0.5, ry: -sd * 0.15 });
+    const rib = [PAL.red, PAL.sky, PAL.red, PAL.yellow][s];
+    for (const sd of [1, -1]) b.geo(coneGeo(4), rib, { x: 0.044, y: 0.113, z: sd * 0.017, rx: -sd * HP, sx: 0.011, sy: 0.03, sz: 0.019, cls: 'soft' });
+    b.ball(0.0105, dk(rib, 0.12), { x: 0.047, y: 0.113, ws: 5, hs: 3, cls: 'soft' });
+  } else if (name === 'rabbit') {
+    for (const sd of [1, -1]) b.put((q) => {
+      q.ball(1, fur, { y: 0.058, sx: 0.013, sy: 0.064, sz: 0.027, ws: 6, hs: 5, ...M });
+      paintTri(q, 'matte', 0, (x, y, z) => (x > 0.003 && Math.abs(z) < 0.02 && y > 0.02 && y < 0.105 ? pad : null));
+    }, { x: -0.016, y: 0.205, z: sd * 0.03, rz: 0.52, rx: sd * 0.3 });
+    b.ball(0.021, PAL.white, { x: -0.078, y: 0.045, ws: 5, hs: 3, ...M });
+  } else {
+    const spike = [PAL.yellow, PAL.orange, PAL.yellow, PAL.mint][s];
+    b.put((q) => q.ball(1, fur, { sx: 0.026, sy: 0.056, sz: 0.03, rz: -HP, ws: 7, hs: 4, color2: dk(fur, 0.1), ...M }), { x: -0.07, y: 0.028, rz: -0.2 });
+    for (const [x, y, nx, ny, k] of [[0.006, 0.226, 0.05, 1, 0.85], [-0.034, 0.218, -0.5, 0.87, 1.1], [-0.063, 0.186, -0.92, 0.4, 0.85], [-0.078, 0.122, -0.92, 0.38, 1.05], [-0.084, 0.072, -0.8, 0.6, 0.9], [-0.112, 0.042, -0.45, 0.9, 0.7]]) {
+      b.geo(coneGeo(4), spike, { x: x + nx * 0.011 * k, y: y + ny * 0.011 * k, rz: Math.atan2(-nx, ny), sx: 0.019 * k, sy: 0.036 * k, sz: 0.008 * k, cls: 'soft' });
+    }
+  }
+  return name === 'rabbit' ? 0.3 : name === 'bear' ? 0.245 : 0.25;
+}
+const BOOK_SETS = [
+  [PAL.red, PAL.yellow, PAL.orange, PAL.cream, PAL.woodRed],
+  [PAL.navy, PAL.sky, PAL.teal, PAL.white, PAL.blue],
+  [PAL.pink, PAL.mint, PAL.yellow, PAL.sky, PAL.purple],
+  [PAL.green, PAL.red, PAL.navy, PAL.mustard, PAL.fabricBlue],
+];
+function book(b, x, y, z, w, t, d, ry, col, deco, mark) {
+  b.put((q) => {
+    const c = 0.0035, S = { R: 0.006, r: 0, cs: 1, es: 1, cls: 'soft' };
+    q.sb(w, c, d, col, { b: 0, ...S });
+    q.sb(w, c, d, col, { b: t - c, ...S });
+    q.pb(0.006, t, d - 0.002, dk(col, 0.08), { x: -w / 2 + 0.003, b: 0, cls: 'soft' });
+    q.pb(w - 0.012, t - 2 * c + 0.001, d - 0.009, PAL.paper, { x: 0.0015, b: c - 0.0005 });
+    for (const k of [1, -1]) q.pb(0.0068, t - 0.002, 0.008, mark, { x: -w / 2 + 0.003, b: 0.001, z: k * (d / 2 - 0.03) });
+    if (deco === 1) q.pb(w * 0.5, 0.0012, d * 0.3, PAL.paper, { x: 0.006, y: t + 0.0005, z: -d * 0.14 });
+    if (deco === 2) { q.cy(Math.min(w, d) * 0.24, Math.min(w, d) * 0.24, 0.0012, mark, { x: 0.006, y: t + 0.0005, z: d * 0.08, seg: 12 }); q.pb(w * 0.46, 0.0012, 0.012, mark, { x: 0.006, y: t + 0.0005, z: -d * 0.32 }); }
+  }, { x, y, z, ry });
+}
+function books(b, v, rnd, s) {
+  const pal = BOOK_SETS[v], n = s % 2 ? 3 : 4, R = 0.133;
+  const off = Math.floor(rnd() * pal.length), step = rnd() < 0.5 ? 2 : 3;
+  let y = 0;
+  for (let i = 0; i < n; i++) {
+    const up = i / (n - 1);
+    let w = 0.152 - up * 0.022 - rnd() * 0.01, d = 0.205 - up * 0.028 - rnd() * 0.012;
+    const t = (n === 4 ? 0.053 : 0.07) * (0.84 + rnd() * 0.32);
+    const ry = (rnd() - 0.5) * (i ? 0.62 : 0.3) + (rnd() < 0.5 ? PI : 0);
+    let ox = (rnd() - 0.5) * 0.026, oz = (rnd() - 0.5) * 0.026;
+    const c = Math.cos(ry), sn = Math.sin(ry);
+    let far = 0;
+    for (const [px, pz] of [[w / 2, d / 2], [-w / 2, d / 2], [w / 2, -d / 2], [-w / 2, -d / 2]]) far = Math.max(far, Math.hypot(ox + px * c + pz * sn, oz - px * sn + pz * c));
+    if (far > R) { const k = R / far; ox *= k; oz *= k; w *= k; d *= k; }
+    const col = pal[(off + i * step) % pal.length], mark = col === PAL.yellow || col === PAL.cream || col === PAL.white || col === PAL.mint ? PAL.navy : mix(PAL.gold, PAL.paper, 0.3);
+    book(b, ox, y, oz, w, t, d, ry, col, i === n - 1 ? 1 + (s >> 1) : 0, mark);
+    y += t;
+  }
+  return y;
+}
+const BOTTLE_PTS = [[0, 0.003], [0.03, 0], [0.045, 0.004], [0.0515, 0.016], [0.052, 0.034], [0.052, 0.058], [0.0526, 0.09], [0.0526, 0.116], [0.052, 0.15],
+  [0.051, 0.168], [0.047, 0.183], [0.04, 0.198], [0.03, 0.212], [0.021, 0.224], [0.017, 0.231], [0.0215, 0.2325], [0.0215, 0.2365], [0.0185, 0.2375], [0.0188, 0.259], [0.016, 0.263], [0, 0.2635]];
+function bottle(b, name, s) {
+  const tea = name === 'tea', fill = [0.183, 0.168, 0.198, 0.15][s];
+  const liq = linear(tea ? mix(PAL.yellow, PAL.leafLight, 0.5) : mix(PAL.skyPale, PAL.sky, 0.3)), liqD = linear(tea ? mix(PAL.mustard, PAL.leafLight, 0.5) : mix(PAL.sky, PAL.skyPale, 0.4));
+  const air = linear(tea ? mix(PAL.paper, PAL.leafLight, 0.14) : mix(PAL.white, PAL.skyPale, 0.45));
+  const lab = linear(tea ? PAL.leaf : PAL.white), band = linear(tea ? PAL.paper : PAL.sky), mark = linear(tea ? PAL.leafDark : PAL.blue);
+  const capC = tea ? [PAL.white, PAL.leaf, PAL.white, PAL.orange][s] : [PAL.blue, PAL.white, PAL.sky, PAL.blue][s], cap = linear(capC), capD = linear(dk(capC, 0.12));
+  const n0 = b.n('gloss');
+  b.rev(BOTTLE_PTS, PAL.white, { cls: 'gloss', seg: 12, sx: 1.07, sz: 1.07 });
+  paintTri(b, 'gloss', n0, (x, y, z) => {
+    if (y > 0.2305) return y > 0.239 && y < 0.258 && (Math.floor((Math.atan2(x, z) / TAU + 1) * 12) % 2) ? capD : cap;
+    if (y > 0.058 && y < 0.15) return y > 0.09 && y < 0.116 ? (x > 0 && Math.abs(Math.atan2(z, x)) < 0.6 ? mark : band) : lab;
+    return y < fill ? (y < 0.012 ? liqD : liq) : air;
+  });
+  return 0.2635;
+}
+const _pillow = new Map();
+function pillowGeos(W, D, Ht, Hb, nx, nz, dent, flapAt) {
+  const key = [W, D, Ht, Hb, ...dent, flapAt].map(k4).join('_') + `_${nx}_${nz}`;
+  let out = _pillow.get(key);
+  if (out) return out;
+  const grid = (n) => Array.from({ length: n + 1 }, (_, i) => (i === 0 ? -1 : i === n ? 1 : i === 1 ? -0.997 : i === n - 1 ? 0.997 : Math.sin((-1 + 2 * (i - 1) / (n - 2)) * HP * 0.92)));
+  const xs = grid(nx), zs = grid(nz);
+  const P = (xn, zn, top) => {
+    const f = Math.sqrt(Math.max(0, (1 - Math.pow(Math.abs(xn), 2.6)) * (1 - Math.pow(Math.abs(zn), 2.6))));
+    const x = xn * W / 2 * (1 - 0.07 * (1 - zn * zn)), z = zn * D / 2 * (1 - 0.1 * (1 - xn * xn));
+    const y = top ? Hb + Ht * Math.pow(f, 0.8) - dent[2] * f * Math.exp(-((xn - dent[0]) ** 2) / 0.2 - ((zn - dent[1]) ** 2) / 0.35) : Hb * (1 - Math.pow(f, 0.3));
+    return [x, y, z];
+  };
+  const pos = [], idx = [], tag = [];
+  for (const top of [true, false]) {
+    const base = pos.length / 3;
+    for (let j = 0; j <= nz; j++) for (let i = 0; i <= nx; i++) pos.push(...P(xs[i], zs[j], top));
+    for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) {
+      const a = base + j * (nx + 1) + i, b2 = a + 1, c = a + nx + 1, d = c + 1;
+      if (top) idx.push(a, c, b2, b2, c, d); else idx.push(a, b2, c, b2, d, c);
+      const g = top && (i === 0 || j === 0 || i === nx - 1 || j === nz - 1) ? 1 : top && (xs[i] + xs[i + 1]) / 2 > flapAt ? 2 : 0;
+      tag.push(g, g);
+    }
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals();
+  const pa = g.attributes.position.array, na = g.attributes.normal.array, parts = [0, 1, 2].map(() => ({ p: [], n: [] }));
+  for (let t = 0; t < idx.length / 3; t++) for (let k = 0; k < 3; k++) {
+    const v = idx[t * 3 + k] * 3, q = parts[tag[t]];
+    q.p.push(pa[v], pa[v + 1], pa[v + 2]); q.n.push(na[v], na[v + 1], na[v + 2]);
+  }
+  out = parts.map((q) => { const h = new THREE.BufferGeometry(); h.setAttribute('position', new THREE.Float32BufferAttribute(q.p, 3)); h.setAttribute('normal', new THREE.Float32BufferAttribute(q.n, 3)); return h; });
+  _pillow.set(key, out);
+  return out;
+}
+const PILLOWS = [[mix(PAL.white, PAL.skyPale, 0.2), PAL.sky], [mix(PAL.pinkPale, PAL.pink, 0.15), PAL.white], [mix(PAL.mint, PAL.white, 0.15), PAL.teal]];
+function pillow(b, v, rnd, s) {
+  const [col, pipe] = PILLOWS[v], W = 0.27, D = 0.175, Ht = 0.064, Hb = 0.028;
+  const dent = [(rnd() - 0.5) * 0.5, (rnd() - 0.5) * 0.4, 0.012 + 0.012 * (s & 1)];
+  const [main, edge, flap] = pillowGeos(W, D, Ht, Hb, 12, 8, dent, s >> 1 ? 0.45 : 9);
+  const flip = s === 3 ? PI : 0, M = { cls: 'matte', ry: flip };
+  b.geo(main, col, M).geo(edge, pipe, M).geo(flap, mix(col, PAL.paper, 0.35), M);
+  b.pb(0.028, 0.018, 0.004, [PAL.red, PAL.yellow, PAL.navy, PAL.red][s], { x: (flip ? 1 : -1) * W * 0.25, y: Hb, z: D / 2 * 0.98, rx: -0.3, cls: 'soft' });
+  return Hb + Ht;
+}
+const BASKETS = [PAL.sky, PAL.pink, mix(PAL.teal, PAL.mint, 0.3)];
+const CLOTHES = [PAL.white, PAL.yellow, PAL.navy, PAL.red, PAL.mint, PAL.orange, PAL.fabricBlue, PAL.pink, PAL.sky];
+const BASKET_PTS = [[0, 0], [0.128, 0], [0.14, 0.04], [0.156, 0.15], [0.172, 0.162], [0.174, 0.18], [0.165, 0.188], [0.152, 0.183], [0, 0.176]];
+const heapGeo = (s) => memo('heap' + s, () => {
+  const g = new THREE.SphereGeometry(1, 12, 4, 0, TAU, 0, HP * 1.18), p = g.attributes.position;
+  for (let i = 0; i < p.count; i++) {
+    const x = p.getX(i), y = p.getY(i), z = p.getZ(i), a = Math.atan2(z, x), k = 1 + (0.2 * Math.sin(a * 3 + s * 1.9) + 0.12 * Math.sin(a * 5 + 1 + s)) * Math.max(0, y);
+    p.setXYZ(i, x * (1 + 0.04 * Math.sin(a * 4 + s)), y * k, z * (1 + 0.04 * Math.sin(a * 4 + s)));
+  }
+  return crease(g.toNonIndexed(), 80);
+});
+function basket(b, v, rnd, s) {
+  const col = BASKETS[v], deep = linear(dk(col, 0.6)), seg = 16;
+  const used = [col], pickC = () => { let c; do c = pick(rnd, CLOTHES); while (used.includes(c)); used.push(c); return c; };
+  const c1 = pickC(), c2 = pickC(), c3 = pickC(), towel = pickC(), sleeve = pickC();
+  b.put((q) => {
+    q.rev(BASKET_PTS, col, { cls: 'soft', seg, ry: -TAU / seg / 2, color2: dk(col, 0.08) });
+    paintTri(q, 'soft', 0, (x, y, z) => {
+      const k = ((Math.round(Math.atan2(x, z) / (TAU / seg)) % seg) + seg) % seg, rr = Math.hypot(x, z);
+      if (y > 0.04 && y < 0.15 && rr > 0.13 && k % 2 === 1) return deep;
+      if (y > 0.162 && y < 0.18 && rr > 0.165 && (k === 4 || k === 12)) return deep;
+      if (y > 0.17 && y < 0.1835 && rr < 0.16) return deep;
+      return null;
+    });
+    q.geo(heapGeo(s), c1, { y: 0.168, sx: 0.137, sy: 0.05, sz: 0.137, cls: 'matte', color2: dk(c1, 0.1) });
+    const a = rnd() * TAU;
+    q.sb(0.13, 0.03, 0.1, c2, { x: Math.cos(a) * 0.045, b: 0.19, z: Math.sin(a) * 0.045, ry: a + 0.6, rz: 0.12, rx: 0.08, R: 0.012, r: 0.01, cs: 1, es: 1, cls: 'matte' });
+    q.ball(1, c3, { x: -Math.cos(a + 0.5) * 0.058, y: 0.203, z: -Math.sin(a + 0.5) * 0.058, sx: 0.07, sy: 0.03, sz: 0.058, ry: -a, rx: 0.12, ws: 8, hs: 4, cls: 'matte', color2: dk(c3, 0.12) });
+    const n1 = q.n('matte'), st = linear(mix(towel, PAL.paper, 0.6));
+    q.ribbon([[0.07, 0.21, 0.03], [0.128, 0.204, 0.034], [0.167, 0.195, 0.035], [0.179, 0.158, 0.034], [0.175, 0.1, 0.03]], 0.046, 0.005, (p) => [p.x - 0.13, p.y - 0.15, 0], towel, { seg: 8, rad: 4, cls: 'matte' });
+    paintTri(q, 'matte', n1, (x, y) => (y > 0.108 && y < 0.122 ? st : null));
+    const n2 = q.n('matte'), cuff = linear(mix(sleeve, PAL.paper, 0.5));
+    q.tube([[-0.03, 0.205, -0.1], [-0.04, 0.2, -0.158], [-0.046, 0.18, -0.181], [-0.05, 0.14, -0.183], [-0.054, 0.098, -0.178]], 0.017, sleeve, { seg: 6, rad: 5, cls: 'matte' });
+    q.ball(0.017, sleeve, { x: -0.054, y: 0.098, z: -0.178, ws: 5, hs: 3, cls: 'matte' });
+    paintTri(q, 'matte', n2, (x, y) => (y < 0.112 ? cuff : null));
+  }, { sz: 0.84 });
+  return 0.235;
+}
 const BODY = {
   chair: { r: 0.26, build(b, v) {
     const seat = [PAL.blue, PAL.red, PAL.teal, PAL.mustard][v % 4], fr = PAL.charcoal;
@@ -1405,7 +1609,27 @@ const BODY = {
   } },
   box: { r: 0.2, build(b, v, name, rnd) { carton(b, 0, 0, 0, 0.275, 0.27, 0.275, 0, rnd, false); return 0.272; } },
   toy: { r: 0.1, named: ['car', 'duck', 'blocks'], build(b, v, name) { return TOYS[name](b, v); } },
+  plush: { r: 0.125, pin: true, named: ['bear', 'rabbit', 'dino'], build(b, v, name, rnd, s) { return plush(b, name, s); } },
+  books: { r: 0.135, pin: true, colors: 4, build(b, v, name, rnd, s) { return books(b, v, rnd, s); } },
+  bottle: { r: 0.0675, pin: true, named: ['water', 'tea'], build(b, v, name, rnd, s) { return bottle(b, name, s); } },
+  pillow: { r: 0.155, pin: true, colors: 3, build(b, v, name, rnd, s) { return pillow(b, v, rnd, s); } },
+  basket: { r: 0.185, pin: true, colors: 3, build(b, v, name, rnd, s) { return basket(b, v, rnd, s); } },
 };
+const finiteNum = (x) => { const n = variantNum(x, 0); return Number.isFinite(n) ? n : 0; };
+function createPin(kind, def, o, g) {
+  const named = def.named;
+  const name = named ? (named.includes(o.variant) ? o.variant : named[finiteNum(o.variant ?? o.seed) % named.length]) : '';
+  const v = named ? 0 : finiteNum(o.variant ?? o.seed) % def.colors, s = o.seed == null ? 0 : finiteNum(o.seed) % PIN_LOOKS;
+  const inner = stamp(`pin|${kind}|${name}|${v}|${s}`, () => {
+    const b = new MB(), h = def.build(b, v, name, rng(strSeed(kind) + v * 131 + s * 977), s);
+    const t = b.build(); t.name = 'inner'; t.userData.h = h;
+    return t;
+  });
+  const r = o.r > 0 && Number.isFinite(o.r) ? o.r : def.r, k = r / def.r;
+  inner.scale.setScalar(k); g.add(inner);
+  g.userData.h = inner.userData.h * k;
+  return g;
+}
 export function createBody(kind, o = {}) {
   const g = new THREE.Group(), def = BODY[kind];
   g.userData.kind = kind;
@@ -1422,6 +1646,7 @@ export function createBody(kind, o = {}) {
     g.add(b.build()); g.userData.h = h; g.userData.anim = () => {};
     return g;
   }
+  if (def.pin) return createPin(kind, def, o, g);
   const r = o.r || def.r, named = def.named;
   const name = named ? (named.includes(o.variant) ? o.variant : named[variantNum(o.variant ?? o.seed, 0) % named.length]) : '';
   const v = variantNum(named ? o.seed : (o.variant ?? o.seed), 0) % 12;

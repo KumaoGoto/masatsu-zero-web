@@ -1,5 +1,5 @@
 import {
-  ITEMS, LIMIT_TENTHS, TRUTH, TAGLINE, MEDAL_NAME, HINTS, FAIL, HOWTO_PULL, PULLS,
+  ITEMS, LIMIT_TENTHS, limitSec, smashLine, smashParts, TRUTH, TAGLINE, MEDAL_NAME, FAIL, HOWTO_PULL, PULLS, PULL_NOTE, pullMode, readyHint,
   formatTenths, weightLabel, dayLabel, resultHeadlineParts, catLine, randoLine,
   thrownList, medalFor, nextMedalText,
 } from './text.js';
@@ -77,7 +77,7 @@ const FLOOR = (w, h) => `<rect x="2" y="2" width="${w - 4}" height="${h - 4}" rx
   <path class="planks" d="M2 27H${w - 2}M2 52H${w - 2}M2 77H${w - 2}M2 102H${w - 2}M2 127H${w - 2}M58 2v25M170 27v25M96 52v25M226 77v25M40 102v25M150 127v21M244 2v25"/>
   <path d="M60 2l-40 ${h - 4}h26l40-${h - 4}zM190 2l-40 ${h - 4}h12l40-${h - 4}z" fill="#fff" opacity=".22"/>`;
 const HOWTO_DOOR = {
-    h: '60 秒で遅刻',
+    h: `${limitSec()} 秒で遅刻`,
     p: '玄関のドアから、外へ出よう。',
     svg: `<svg class="ht-svg ht3" viewBox="0 0 280 150" aria-hidden="true" focusable="false">
       <rect x="2" y="2" width="276" height="146" rx="18" fill="#d9ead0"/>
@@ -95,48 +95,51 @@ const HOWTO_DOOR = {
       <g class="clock" transform="translate(196 75)">
         <circle r="38" class="c-bg"/>
         <circle r="38" class="c-ring" transform="rotate(-90)"/>
-        <text y="6" class="c-num">60</text><text y="24" class="c-u">秒</text>
+        <text y="6" class="c-num">${limitSec()}</text><text y="24" class="c-u">秒</text>
       </g>
     </svg>`,
   };
 function howtoPull(mode) {
-  const t = mode === 'opposite' ? HOWTO_PULL.opposite : HOWTO_PULL.same;
-  const svg = mode === 'opposite'
-    ? `<svg class="ht-svg ht1 ht1-opp" viewBox="0 0 280 150" aria-hidden="true" focusable="false">${FLOOR(280, 150)}
-      <path class="trail" d="M118 75H214"/>
-      <g class="go"><path d="M142 75h50" class="go-l"/><path d="M183 64l12 11-12 11"/></g>
-      <path class="band-bg" d="M118 75H48"/><path class="band" d="M118 75H48"/>
-      <g class="book"><g transform="translate(104 61) scale(.86)"><g class="pic">${PICS.kyoka}</g></g></g>
-      <g class="kid"><g transform="translate(118 75)">${KID}</g></g>
-      <g class="finger"><circle cx="118" cy="75" r="15"/><circle cx="118" cy="75" r="4.5" class="dot"/></g>
-      <g class="lbl l-item"><rect x="18" y="36" width="30" height="22" rx="11"/><text x="33" y="52">${t.item}</text></g>
-      <g class="lbl l-kid"><rect x="144" y="28" width="118" height="28" rx="14"/><text x="203" y="47">${t.self}</text></g>
-    </svg>`
-    : `<svg class="ht-svg ht1 ht1-same" viewBox="0 0 280 150" aria-hidden="true" focusable="false">${FLOOR(280, 150)}
-      <path class="trail" d="M110 62H206"/>
-      <g class="go"><path d="M134 62h50" class="go-l"/><path d="M175 51l12 11-12 11"/></g>
-      <path class="fl-bg" d="M100 112H170"/><path class="fl" d="M100 112H170"/><path class="fl-head" d="M138 105l10 7-10 7"/>
-      <g class="book"><g transform="translate(96 48) scale(.86)"><g class="pic">${PICS.kyoka}</g></g></g>
-      <g class="kid"><g transform="translate(110 62)">${KID}</g></g>
-      <g class="finger"><circle cx="100" cy="112" r="15"/><circle cx="100" cy="112" r="4.5" class="dot"/></g>
-      <g class="lbl l-item"><rect x="20" y="24" width="30" height="22" rx="11"/><text x="35" y="40">${t.item}</text></g>
-      <g class="lbl l-kid"><rect x="158" y="18" width="110" height="28" rx="14"/><text x="213" y="37">${t.self}</text></g>
+  const same = mode !== 'opposite', t = same ? HOWTO_PULL.same : HOWTO_PULL.opposite;
+  const lw = (s, px) => Math.round([...s].length * px * 1.04 + 40);
+  const w1 = lw(t.pull, 12), w2 = lw(t.item, 12), w3 = lw(t.self, 13.5);
+  const kx = same ? 118 : 122, ky = 62, fy = 116;
+  const go = 100, gx = kx + go;
+  const fx1 = same ? kx + 70 : kx - 70;
+  const badge = (x, y, n) => `<circle class="no" cx="${x}" cy="${y}" r="8.5"/><text class="no-t" x="${x}" y="${y + 4}">${n}</text>`;
+  const pill = (cls, x, y, w, h, n, s) => `<g class="lbl ${cls}"><rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${h / 2}"/>${badge(x + h / 2, y + h / 2, n)}<text x="${x + h / 2 + 10 + (w - h / 2 - 10) / 2 - 4}" y="${y + h / 2 + 4.5}">${s}</text></g>`;
+  const l1x = same ? kx - 18 - w1 : kx + 20;
+  const svg = `<svg class="ht-svg ht1 ${same ? 'ht1-same' : 'ht1-opp'}" viewBox="0 0 280 150" aria-hidden="true" focusable="false">${FLOOR(280, 150)}
+      <path class="trail" d="M${kx} ${ky}H${gx}"/>
+      <path class="fl-bg" d="M${kx} ${fy}H${fx1}"/><path class="fl" d="M${kx} ${fy}H${fx1}"/>
+      ${same ? '' : `<g class="sling"><circle class="post" cx="${kx}" cy="${ky - 19}" r="3.2"/><circle class="post" cx="${kx}" cy="${ky + 19}" r="3.2"/><path class="band-bg" d="M${kx} ${ky - 19}L${kx - 16} ${ky}L${kx} ${ky + 19}"/><path class="band" d="M${kx} ${ky - 19}L${kx - 16} ${ky}L${kx} ${ky + 19}"/></g>`}
+      ${same ? `<g class="puff"><circle cx="${kx - 24}" cy="${ky - 6}" r="5"/><circle cx="${kx - 30}" cy="${ky + 5}" r="4"/><circle cx="${kx - 20}" cy="${ky + 8}" r="3.2"/></g>` : ''}
+      <g class="book"><g transform="translate(${kx - 37} ${ky - 9.5}) scale(.6)"><g class="pic">${PICS.kyoka}</g></g></g>
+      <g class="kid"><g transform="translate(${kx} ${ky})">${KID}</g></g>
+      <g class="finger"><circle cx="${kx}" cy="${fy}" r="15"/><circle cx="${kx}" cy="${fy}" r="4.5" class="dot"/>${same ? `<path class="tip" d="M${kx + 21} ${fy - 6}L${kx + 27} ${fy}L${kx + 21} ${fy + 6}"/>` : ''}</g>
+      ${pill('l-pull', l1x, fy - 12, w1, 24, 1, t.pull)}
+      ${pill('l-item', 12, same ? 12 : ky + 17, w2, 24, 2, t.item)}
+      ${pill('l-self', 268 - w3, 11, w3, 26, 3, t.self)}
     </svg>`;
   return { h: t.h, p: t.p, svg };
 }
 const weightOf = (id) => { const it = ITEMS.find((x) => x.id === id); return it ? weightLabel(it.g) : ''; };
-const howtoPages = (mode) => [
+const lightest = () => (ITEMS.length ? ITEMS.reduce((a, b) => (b.g < a.g ? b : a)).id : 'kutsu');
+const heaviest = () => (ITEMS.length ? ITEMS.reduce((a, b) => (b.g > a.g ? b : a)).id : 'rando');
+const howtoPages = (mode, lt = lightest(), hv = heaviest()) => [
   howtoPull(mode),
   {
-    h: '重い物ほど、大きく動く',
-    p: '止まれないので、進む向きへ投げてブレーキ。',
+    h: 'ピンにぶつかると、ぶっ飛ぶ',
+    p: '重い物を投げるほど、速くすべる。ピンのかたまりに突っこもう。',
     svg: `<svg class="ht-svg ht2" viewBox="0 0 280 150" aria-hidden="true" focusable="false">${FLOOR(280, 150)}
       <path d="M16 75h248" class="lane"/>
-      <g class="tag"><g transform="translate(14 28) scale(.75)"><g class="pic">${PICS.keshi}</g></g><text x="44" y="45">${weightOf('keshi')}</text></g>
-      <g class="tag"><g transform="translate(14 98) scale(.75)"><g class="pic">${PICS.rando}</g></g><text x="44" y="115">${weightOf('rando')}</text></g>
-      <path class="tr tr1" d="M150 40H160"/><path class="tr tr2" d="M150 110H236"/>
-      <g class="it it1"><g transform="translate(118 32) scale(.5)"><g class="pic">${PICS.keshi}</g></g></g>
-      <g class="it it2"><g transform="translate(111 99) scale(.72)"><g class="pic">${PICS.rando}</g></g></g>
+      <g class="tag"><g transform="translate(14 28) scale(.75)"><g class="pic">${PICS[lt] || ''}</g></g><text x="44" y="45">${weightOf(lt)}</text></g>
+      <g class="tag"><g transform="translate(14 98) scale(.75)"><g class="pic">${PICS[hv] || ''}</g></g><text x="44" y="115">${weightOf(hv)}</text></g>
+      <path class="tr tr1" d="M150 40H160"/><path class="tr tr2" d="M150 110H214"/>
+      <circle class="pop" cx="204" cy="110" r="16"/>
+      ${[[208, 110], [220, 103], [220, 117], [232, 96], [232, 110], [232, 124]].map(([x, y], i) => `<g class="pin p${i + 1}"><circle cx="${x}" cy="${y}" r="5.5"/><circle cx="${x - 1.6}" cy="${y - 1.8}" r="1.6" class="hl"/></g>`).join('')}
+      <g class="it it1"><g transform="translate(118 32) scale(.5)"><g class="pic">${PICS[lt] || ''}</g></g></g>
+      <g class="it it2"><g transform="translate(111 99) scale(.72)"><g class="pic">${PICS[hv] || ''}</g></g></g>
       <g class="k1"><g transform="translate(150 40) scale(.78)">${KID}</g></g>
       <g class="k2"><g transform="translate(150 110) scale(.78)">${KID}</g></g>
     </svg>`,
@@ -144,9 +147,11 @@ const howtoPages = (mode) => [
   HOWTO_DOOR,
 ];
 const PULL_FIG = (mode) => `<svg class="pull-fig" viewBox="0 0 64 40" aria-hidden="true" focusable="false">
+  <rect class="pf-item" x="11" y="10" width="6" height="6" rx="1.5"/>
+  <circle cx="25" cy="13" r="4" class="pf-kid"/><path class="pf-go" d="M32 13H55M50 8L55 13L50 18"/>
   ${mode === 'opposite'
-    ? '<path class="pf-band" d="M25 20H12"/><circle class="pf-finger" cx="8.5" cy="20" r="4.5"/><circle cx="30" cy="20" r="7" class="pf-kid"/><path class="pf-go" d="M41 20h16M52 15l5 5-5 5"/>'
-    : '<circle cx="17" cy="14" r="7" class="pf-kid"/><path class="pf-go" d="M28 14h20M43 9l5 5-5 5"/><path class="pf-band" d="M14 32h22"/><path class="pf-band" d="M27 28.5l4.5 3.5-4.5 3.5"/><circle class="pf-finger" cx="40.5" cy="32" r="4.5"/>'}
+    ? '<path class="pf-band" d="M42 31H23"/><circle class="pf-finger" cx="18.5" cy="31" r="4.5"/>'
+    : '<path class="pf-puff" d="M5.5 10.5v0M4 15.5v0"/><path class="pf-band" d="M21 31H40"/><path class="pf-tip" d="M41 28L44 31L41 34"/><circle class="pf-finger" cx="48.5" cy="31" r="4.5"/>'}
 </svg>`;
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 function refs(el) { const o = {}; el.querySelectorAll('[data-r]').forEach((e) => { o[e.dataset.r] = e; }); return o; }
@@ -277,11 +282,11 @@ function hudHTML() {
     <div class="hud" data-r="hudBox">
       <button type="button" class="btn-round pe h-pause" data-r="hPause" aria-label="一時停止">${ic('pause')}</button>
       <div class="timer idle" data-r="timer" role="timer" aria-label="のこり時間">
-        <span class="timer-row"><span class="timer-v" data-r="time">60.0</span><span class="timer-u">秒</span></span>
+        <span class="timer-row"><span class="timer-v" data-r="time">${formatTenths(LIMIT_TENTHS)}</span><span class="timer-u">秒</span></span>
         <span class="timer-bar"><span data-r="prog"></span></span>
       </div>
       <button type="button" class="btn-round pe h-retry" data-r="hRetry" aria-label="やりなおす">${ic('retry')}</button>
-      <p class="idle-l" data-r="idleL"><span class="idle-dot"></span><span class="idle-t" data-r="idleT">${esc(HINTS.ready)}</span></p>
+      <p class="idle-l" data-r="idleL"><span class="idle-dot"></span><span class="idle-t" data-r="idleT">${esc(readyHint(PULLS.def))}</span></p>
       <p class="replay-l">${ic('replay')}<span>リプレイ</span><b data-r="hReplayV"></b></p>
       <div class="hint" data-r="hint" role="status"><span class="hint-in" data-r="hintIn">${ic('drag')}<span class="hint-t" data-r="hintText"></span></span></div>
     </div>
@@ -295,7 +300,7 @@ function barHTML() {
   return `
   <section class="layer L-bar" data-layer="bar" aria-label="持ち物">
     <div class="bar" data-r="barBox">
-      <div class="tray pe${ITEMS.length <= 5 ? ' few' : ''}" role="group" aria-label="投げる持ち物" data-r="tray" style="--n:${ITEMS.length || 1}">${slots}</div>
+      <div class="tray pe${ITEMS.length <= 5 ? ' few' : ''}${ITEMS.length <= 3 ? ' n3' : ''}" role="group" aria-label="投げる持ち物" data-r="tray" style="--n:${ITEMS.length || 1}">${slots}</div>
     </div>
   </section>`;
 }
@@ -337,6 +342,7 @@ function resultHTML() {
         <div class="r-medal rise" style="--d:2" data-r="rMedal"></div>
         <div class="r-info rise" style="--d:3">
           <p class="r-meta" data-r="rMeta"></p>
+          <p class="r-smash" data-r="rSmash"></p>
           <p class="r-thrown" data-r="rThrown"></p>
           <p class="r-note" data-r="rNote"></p>
         </div>
@@ -421,17 +427,22 @@ function settingsHTML() {
       <span class="set-l" id="nf-s-${k}-l">${label}${sub ? `<small>${sub}</small>` : ''}</span>
       <button type="button" class="switch" role="switch" aria-checked="false" aria-labelledby="nf-s-${k}-l" data-r="s_${k}" data-k="${k}"><span class="knob"></span></button>
     </div>`;
+  const pullName = (n) => {
+    const m = /^(.+?)（(.+)）$/.exec(String(n));
+    return m ? `<b class="opt-k">${esc(m[1])}</b><span class="opt-p"><span class="opt-paren">（</span>${phraseHTML(m[2])}<span class="opt-paren">）</span></span>` : esc(n);
+  };
+  const def = pullMode(PULLS.def), modes = [def, def === 'same' ? 'opposite' : 'same'];
+  const opt = (m) => `
+          <button type="button" class="opt" role="radio" aria-checked="${m === def}" data-v="${m}">${PULL_FIG(m)}<span class="opt-t"><span class="opt-n">${pullName(PULLS[m])}${m === def ? `<small>${esc(PULLS.mark)}</small>` : ''}</span><span class="opt-sub">${phraseHTML(PULL_NOTE[m])}</span></span><span class="opt-mark">${ic('check')}</span></button>`;
   const body = `
     <div class="sheet-scroll set">
-      <div class="set-group">${range('sfx', '効果音', 'sound')}${range('bgm', 'BGM', 'music')}</div>
-      <div class="set-group">${sw('vibe', '振動', 'vibe')}${sw('ghost', 'ゴースト', 'ghost', '自己ベストの自分と一緒にすべる')}</div>
       <div class="set-block">
         <p class="set-cap" id="nf-s-inv-l">引く向き</p>
-        <div class="choice" role="radiogroup" aria-labelledby="nf-s-inv-l" data-r="s_pull">
-          <button type="button" class="opt" role="radio" aria-checked="true" data-v="same">${PULL_FIG('same')}<span class="opt-t">${esc(PULLS.same)}<small>${esc(PULLS.mark)}</small></span><span class="opt-mark">${ic('check')}</span></button>
-          <button type="button" class="opt" role="radio" aria-checked="false" data-v="opposite">${PULL_FIG('opposite')}<span class="opt-t">${esc(PULLS.opposite)}</span><span class="opt-mark">${ic('check')}</span></button>
+        <div class="choice" role="radiogroup" aria-labelledby="nf-s-inv-l" data-r="s_pull">${modes.map(opt).join('')}
         </div>
       </div>
+      <div class="set-group">${range('sfx', '効果音', 'sound')}${range('bgm', 'BGM', 'music')}</div>
+      <div class="set-group">${sw('vibe', '振動', 'vibe')}${sw('ghost', 'ゴースト', 'ghost', '自己ベストの自分と一緒にすべる')}</div>
       <div class="set-block">
         <p class="set-cap" id="nf-s-q-l">${ic('sparkle')}画質</p>
         <div class="seg" role="radiogroup" aria-labelledby="nf-s-q-l" data-r="s_quality">
@@ -446,7 +457,7 @@ function settingsHTML() {
   return modalHTML('settings', '設定', body);
 }
 function howtoHTML() {
-  const list = howtoPages('same');
+  const list = howtoPages(pullMode(PULLS.def));
   const pages = list.map((p, i) => `
     <div class="ht-page" data-p="${i}" role="group" aria-roledescription="ページ" aria-label="${i + 1} / ${list.length}">
       <div class="ht-fig">${p.svg}</div>
@@ -583,7 +594,7 @@ export function createUI(handlers = {}) {
   }
   const hud = { t: -1, hot: null, run: null, sec: -1 };
   const putTime = digitBox(R.time, 4);
-  putTime('60.0');
+  putTime(formatTenths(LIMIT_TENTHS));
   function pulse() {
     anim(R.timer, [
       { transform: 'scale(1)' }, { transform: 'scale(1.12)', offset: 0.28 }, { transform: 'scale(.98)', offset: 0.62 }, { transform: 'scale(1)' },
@@ -592,7 +603,7 @@ export function createUI(handlers = {}) {
   function setHud(s) {
     if (!s) return;
     const t = Math.max(0, Math.round(s.tenths) || 0);
-    const hot = s.hot != null ? !!s.hot : t <= 100;
+    const hot = s.hot != null ? !!s.hot : t <= LIMIT_TENTHS / 6;
     const run = s.running == null ? true : !!s.running;
     if (run !== hud.run) {
       hud.run = run;
@@ -675,7 +686,7 @@ export function createUI(handlers = {}) {
   }
   let hintTimer = 0;
   let hintNow = '';
-  function hint(text, ms) {
+  function hint(text, ms, at) {
     clearTimeout(hintTimer);
     if (!text) { R.hint.removeAttribute('data-on'); return; }
     const showing = R.hint.hasAttribute('data-on');
@@ -687,9 +698,15 @@ export function createUI(handlers = {}) {
       if (document.fonts) document.fonts.ready.then(fitHint);
       if (showing) anim(R.hintIn, [{ opacity: 0.2, transform: 'translateY(6px) scale(.98)' }, { opacity: 1, transform: 'none' }], { duration: 260, easing: SPRING });
     }
+    placeHint(at);
     R.hint.setAttribute('data-on', '');
     const d = ms == null ? TUNE.hintMs : ms;
     if (d > 0) hintTimer = setTimeout(() => R.hint.removeAttribute('data-on'), d);
+  }
+  function placeHint(at) {
+    if (at == null || !Number.isFinite(at)) { R.hint.style.marginTop = ''; return; }
+    const hb = R.hudBox.getBoundingClientRect().bottom, h = R.hintIn.offsetHeight || 44;
+    R.hint.style.marginTop = Math.max(8, Math.round(at - hb - h / 2)) + 'px';
   }
   function fitHint() {
     const el = R.hintText;
@@ -758,6 +775,10 @@ export function createUI(handlers = {}) {
     const note = cl && catOut ? ['cat', cl] : rl ? ['rando', rl] : cl && (Number(r.catDist) || 0) >= 0.05 ? ['cat', cl] : null;
     R.rNote.innerHTML = note ? `${ic(note[0])}<span>${esc(note[1])}</span>` : '';
     R.rNote.hidden = !note;
+    const sp = smashParts(r);
+    R.rSmash.innerHTML = sp ? `${ic('throw')}<span class="sm-t"><span class="sm-a">${esc(sp[0])}</span>${sp[1] ? `<span class="sm-dot">・</span><span class="sm-b">${esc(sp[1])}</span>` : ''}</span>` : '';
+    R.rSmash.setAttribute('aria-label', smashLine(r) || '');
+    R.rSmash.hidden = !sp;
     const tl = thrownList(r.thrown);
     R.rThrown.innerHTML = `<span class="lbl">投げた物：</span><span class="val">${esc(tl.replace(/^投げた物：/, ''))}</span>`;
     R.rThrown.setAttribute('aria-label', tl);
@@ -781,14 +802,14 @@ export function createUI(handlers = {}) {
     };
     countRaf = requestAnimationFrame(step);
   }
-  let settings = { sfx: 0.8, bgm: 0.6, vibe: true, ghost: true, pull: 'same', quality: 'auto' };
-  let pullShown = 'same';
+  let settings = { sfx: 0.8, bgm: 0.6, vibe: true, ghost: true, pull: pullMode(PULLS.def), quality: 'auto' };
+  let pullShown = pullMode(PULLS.def);
   function paintPull() {
-    const mode = settings.pull === 'opposite' ? 'opposite' : 'same';
+    const mode = pullMode(settings.pull);
     setRadio(R.s_pull, mode);
     if (mode === pullShown) return;
     pullShown = mode;
-    R.idleT.textContent = mode === 'opposite' ? HINTS.readyOpp : HINTS.ready;
+    R.idleT.textContent = readyHint(mode);
     const pg = htPages[0], p = howtoPull(mode);
     pg.querySelector('.ht-fig').innerHTML = p.svg;
     pg.querySelector('.ht-h').textContent = p.h;
@@ -830,7 +851,7 @@ export function createUI(handlers = {}) {
       onPick(nb.dataset.v); nb.focus();
     });
   }
-  radioGroup(R.s_pull, (v) => { settings.pull = v === 'opposite' ? 'opposite' : 'same'; paintPull(); call('onSetting', 'pull', settings.pull); });
+  radioGroup(R.s_pull, (v) => { settings.pull = pullMode(v); paintPull(); call('onSetting', 'pull', settings.pull); });
   radioGroup(R.s_quality, (v) => { settings.quality = v; setRadio(R.s_quality, v); call('onSetting', 'quality', v); });
   function setReplay(o = {}) {
     if (o.mode) { layers.replay.dataset.mode = o.mode; root.dataset.rp = o.mode; }
@@ -962,7 +983,8 @@ export function createUI(handlers = {}) {
   }
   const replayL = root.querySelector('.replay-l');
   setSettings({});
-  setInventory({ counts: ITEMS.map((it) => it.n), sel: Math.max(0, ITEMS.findIndex((it) => it.id === 'kyoka')) });
+  const C0 = typeof globalThis !== 'undefined' && globalThis.NFCore ? globalThis.NFCore.CONFIG : null;
+  setInventory({ counts: ITEMS.map((it) => it.n), sel: C0 && Number.isInteger(C0.FIRST_ITEM) && C0.FIRST_ITEM >= 0 && C0.FIRST_ITEM < ITEMS.length ? C0.FIRST_ITEM : Math.max(0, ITEMS.findIndex((it) => it.id === 'kyoka')) });
   screen('title');
   return {
     screen, setTitle, setHud, setInventory, idleHint, hint, toast, showResult, setSettings, setLayouts, insets, quiet, setReplay,

@@ -1,22 +1,32 @@
-export const LIMIT_TENTHS = 600;
+export let LIMIT_TENTHS = 600;
+export function useLimit(config) {
+  const t = config && Number.isInteger(config.LIMIT_TICKS) && config.LIMIT_TICKS > 0 ? config.LIMIT_TICKS : 0;
+  if (t) LIMIT_TENTHS = Math.round(t / 24);
+  return LIMIT_TENTHS;
+}
+useLimit(typeof globalThis !== 'undefined' && globalThis.NFCore ? globalThis.NFCore.CONFIG : null);
+export function limitSec() { return Math.round(LIMIT_TENTHS / 10); }
 export const HASHTAG = '#摩擦ゼロの朝';
 export const TITLE = '摩擦ゼロの朝';
 export const TAGLINE = 'ある朝、世界から摩擦が消えた。';
 export const TRUTH = '歩けるのは、足と床のあいだに摩擦があるから。摩擦がないと、物を投げた反動（作用・反作用）でしか動けない。重い物を投げるほど、大きく動く。';
 export const HINTS = {
   first: '下で物を選んで、画面を指で引っぱって離す',
-  after: 'すべって止まれない。また投げて、向きを変えよう',
-  ready: '進みたい向きへ引っぱって離す',
-  readyOpp: '画面を引っぱって離すと、反対へすべる',
+  after: 'ぶつかるまで止まれない。次の物で向きを変えよう',
+  ready: '引いて構えて、離すと投げる',
+  readyOpp: '引っぱって離すと、反対へ飛び出す',
 };
-export const PULLS = { same: '引いた向きへすべる', opposite: '引いた反対へすべる', mark: '標準' };
+export const PULLS = { same: 'ロケット式（行きたい方へ引く）', opposite: 'パチンコ式（引いて離すと反対へ飛び出す）', mark: '標準', def: 'same' };
+export const PULL_NOTE = { same: '引いた反対へ投げて、背中から飛ぶ', opposite: '物は引いた向きへ飛び、自分は反対へ' };
+export function pullMode(v) { return v === 'same' || v === 'opposite' ? v : PULLS.def; }
+export function readyHint(mode) { return pullMode(mode) === 'same' ? HINTS.ready : HINTS.readyOpp; }
 export const COACH = {
-  same: { self: '引いた向きへ すべる', item: '物は反対へ飛ぶ' },
-  opposite: { self: '引いた反対へ すべる', item: '物が飛ぶ' },
+  same: { main: '引いて、投げる', sub: '反動で、背中から飛ぶ' },
+  opposite: { main: '引いた反対へ 飛び出す', sub: '物は引いた向きへ' },
 };
 export const HOWTO_PULL = {
-  same: { h: '進みたい向きへ、引っぱって離す', p: '物を後ろへ投げて、その反動で進む。', self: '引いた向きへ', item: '物' },
-  opposite: { h: '引っぱって離すと、反対へすべる', p: '物を投げた反動で動く。物は、引いた向きへ飛ぶ。', self: '反対へ すべる', item: '物' },
+  same: { h: '引いて構えて、離すと投げる', p: '物を投げると、その反動で、背中から反対へ飛んでいく。', pull: '引く', item: '物を投げる', self: '背中から飛ぶ' },
+  opposite: { h: '引っぱって離すと、反対へ飛び出す', p: '物は引いた向きへ飛び、その反動で、自分は反対へ飛び出す。', pull: '引く', item: '物は引いた向きへ', self: '反対へ飛び出す' },
 };
 export const FAIL = { title: 'この端末では絵を出せませんでした', sub: 'ブラウザを新しくするか、ほかの端末で開いてみてください。', button: '読み直す' };
 export let ITEMS = [];
@@ -94,6 +104,15 @@ export function catLine(r) {
   const d = Math.max(0, Number(r.catDist) || 0), who = cats > 1 ? 'ねこたちは' : 'ねこは';
   if (d < 0.05) return `${who} すべらずにすんだ`;
   return cats > 1 ? `${who} 合わせて ${formatMeters(d)} m すべった` : `${who} ${formatMeters(d)} m すべった`;
+}
+export function smashLine(r) {
+  const p = smashParts(r);
+  return p ? p.join('・') : null;
+}
+export function smashParts(r) {
+  const n = Math.max(0, Math.round(Number(r && r.smashed) || 0)), best = Math.max(0, Math.round(Number(r && r.smashBest) || 0));
+  if (!n) return null;
+  return best >= 2 ? [`ぶっ飛ばした物 ${n} 個`, `最大 ${best} コ ぶっ飛ばし`] : [`ぶっ飛ばした物 ${n} 個`];
 }
 export function randoLine(r) {
   return threwRando(r) ? 'ランドセルは家に置いてきた' : null;
